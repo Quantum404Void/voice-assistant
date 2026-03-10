@@ -99,7 +99,11 @@ class ASR:
 
     # ── Paraformer ────────────────────────────────────────────────────────
     def _transcribe_paraformer(self, audio: np.ndarray) -> str:
+        import dashscope
         from dashscope.audio.asr import Recognition
+        # 注入 API key
+        if self.api_key:
+            dashscope.api_key = self.api_key
         fd, tmp_wav = tempfile.mkstemp(suffix=".wav")
         try:
             with os.fdopen(fd, "wb") as f:
@@ -200,13 +204,16 @@ class ASR:
     # ── Local Whisper ─────────────────────────────────────────────────────
     def _transcribe_whisper(self, audio: np.ndarray) -> str:
         self._load_whisper()
-        segments, _ = self._whisper.transcribe(
+        segments, info = self._whisper.transcribe(
             audio,
             language=self.language,
             beam_size=5,
             vad_filter=True,
+            vad_parameters={"threshold": 0.3, "min_silence_duration_ms": 300},
             temperature=0,
             condition_on_previous_text=False,
             initial_prompt="以下是普通话内容：",
         )
-        return "".join(seg.text for seg in segments).strip()
+        result = "".join(seg.text for seg in segments).strip()
+        print(f"[ASR whisper] lang={info.language} prob={info.language_probability:.2f} result={repr(result)}")
+        return result

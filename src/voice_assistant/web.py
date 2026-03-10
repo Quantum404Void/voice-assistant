@@ -579,8 +579,14 @@ async def _process_audio(asr: ASR, b64_data: str, mime: str = "audio/webm") -> s
         rms = float((audio_np**2).mean()**.5)
         print(f"[ASR] mime={mime} ext={ext} wav={wav_size}B samples={len(audio_np)} rms={rms:.4f}")
 
+        if rms < 0.005:
+            print(f"[ASR] rms too low ({rms:.4f}), skipping")
+            return ""
+
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, asr.transcribe, audio_np)
+        result = await loop.run_in_executor(None, asr.transcribe, audio_np)
+        print(f"[ASR] result={repr(result)}")
+        return result
     finally:
         for p in (tmp_in, tmp_out):
             try: os.unlink(p)
