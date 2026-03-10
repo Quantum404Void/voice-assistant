@@ -452,7 +452,13 @@ async def ws_endpoint(websocket: WebSocket):
                     await send({"type": "user", "text": text})
                     await _stream_llm(websocket, _get_llm(model_key), text, _tts_enabled.get(cid, True), cid)
                 except Exception as e:
-                    await send({"type": "error", "text": f"音频处理失败: {e}"})
+                    err_str = str(e)
+                    # 不把完整 ffmpeg 堆栈发给前端
+                    if "ffmpeg" in err_str or len(err_str) > 100:
+                        short = "音频处理失败，请靠近麦克风重试"
+                    else:
+                        short = err_str[:80]
+                    await send({"type": "error", "text": short})
 
             elif mtype == "tts_toggle":
                 _tts_enabled[cid] = msg.get("enabled", True)

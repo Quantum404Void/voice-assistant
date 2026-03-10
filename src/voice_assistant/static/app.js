@@ -545,7 +545,8 @@ function rtStartListening() {
   isBusy = false;
   rtSetState('listening');
   setWaveLabel('监听中');
-  const rtMime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg']
+  // 优先用 ogg/opus，webm header 在短 chunk 下容易损坏
+  const rtMime = ['audio/ogg;codecs=opus','audio/webm;codecs=opus','audio/webm','audio/ogg']
     .find(m => MediaRecorder.isTypeSupported(m)) || '';
   rtMediaRec = new MediaRecorder(rtStream, rtMime ? { mimeType: rtMime } : {});
   rtMediaRec.ondataavailable = e => { if (e.data.size > 0) rtChunks.push(e.data); };

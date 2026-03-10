@@ -1756,3 +1756,121 @@ body::after {
 .msg.assistant {
   max-width: 85% !important;
 }
+
+/* ══════════════════════════════════════════
+   美化补丁 2026-03-10
+══════════════════════════════════════════ */
+
+/* ── 错误消息样式 ── */
+.info.err {
+  background: rgba(255, 59, 48, 0.08) !important;
+  border: 1px solid rgba(255, 59, 48, 0.25) !important;
+  color: #ff6b6b !important;
+  border-radius: 10px !important;
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+  max-width: 520px !important;
+  margin: 4px auto !important;
+  text-align: center !important;
+  word-break: break-word !important;
+  white-space: normal !important;
+  line-height: 1.5 !important;
+}
+
+/* ── 气泡优化 ── */
+.msg.user {
+  max-width: 65% !important;
+}
+.msg.assistant {
+  max-width: 82% !important;
+}
+.bubble.user {
+  border-radius: 20px 20px 6px 20px !important;
+  padding: 10px 15px !important;
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+}
+.bubble.ai {
+  border-radius: 20px 20px 20px 6px !important;
+  padding: 10px 15px !important;
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+  text-align: left !important;
+}
+
+/* ── 时间戳 ── */
+.ts {
+  font-size: 11px !important;
+  opacity: 0.35 !important;
+  margin-top: 3px !important;
+}
+
+/* ── Welcome 模式按钮现代化 ── */
+.wc-chip {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 12px !important;
+  padding: 9px 18px !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  color: rgba(255,255,255,0.75) !important;
+  backdrop-filter: blur(8px) !important;
+}
+.wc-chip:hover {
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.25) !important;
+  color: #fff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+}
+.wc-chip .wc-icon {
+  font-size: 16px !important;
+}
+
+/* ── Navbar chip active 状态 ── */
+.hdr-chip {
+  transition: all 0.18s ease !important;
+}
+.hdr-chip:hover {
+  background: rgba(255,255,255,0.12) !important;
+}
+.hdr-chip.active {
+  background: rgba(99,179,237,0.15) !important;
+  border-color: rgba(99,179,237,0.4) !important;
+  color: #63b3ed !important;
+}
+
+/* ── 状态指示器优化 ── */
+#status-pill {
+  font-weight: 500 !important;
+  letter-spacing: 0.3px !important;
+}
+#status-pill.green { color: #68d391 !important; }
+#status-pill.yellow { color: #f6e05e !important; }
+#status-pill.red { color: #fc8181 !important; }
+
+/* ── 输入框 placeholder ── */
+#text-input::placeholder {
+  color: rgba(255,255,255,0.28) !important;
+  font-size: 14px !important;
+}
+
+/* ── 聊天区底部留白，避免被底栏遮住 ── */
+#chat {
+  padding-bottom: 80px !important;
+}
+
+/* ── 滚动条更细 ── */
+#chat::-webkit-scrollbar { width: 4px !important; }
+#chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1) !important; border-radius: 2px !important; }
+
+/* ── info 行间距 ── */
+.info {
+  margin: 6px auto !important;
+  font-size: 13px !important;
+  opacity: 0.6 !important;
+}
