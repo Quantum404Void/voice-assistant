@@ -113,11 +113,24 @@ class ASR:
             try: os.unlink(tmp_wav)
             except: pass
 
-        if result and result.get("status_code") == 200:
-            sentences = result.get("output", {}).get("sentence", [])
-            return "".join(s.get("text", "") for s in sentences).strip()
+        # RecognitionResult 是对象，不是 dict
+        try:
+            status_ok = result is not None and getattr(result, "status_code", None) == 200
+        except Exception:
+            status_ok = False
 
-        reason = result.get("message") if result else "None"
+        if status_ok:
+            output = getattr(result, "output", None) or {}
+            if isinstance(output, dict):
+                sentences = output.get("sentence", [])
+            else:
+                sentences = getattr(output, "sentence", []) or []
+            return "".join(
+                (s.get("text", "") if isinstance(s, dict) else getattr(s, "text", ""))
+                for s in sentences
+            ).strip()
+
+        reason = getattr(result, "message", None) if result is not None else "None response"
         print(f"[ASR] paraformer failed ({reason}), fallback whisper")
         self._load_whisper()
         return self._transcribe_whisper(audio)
