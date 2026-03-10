@@ -1874,3 +1874,18 @@ body::after {
   font-size: 13px !important;
   opacity: 0.6 !important;
 }
+
+/* ── Welcome chips 2×2 grid ── */
+.welcome-chips {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+  margin-top: 24px !important;
+  width: 340px !important;
+}
+.wc-chip {
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
