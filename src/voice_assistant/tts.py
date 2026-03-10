@@ -315,3 +315,79 @@ class TTS:
         finally:
             try: os.unlink(tmp)
             except: pass
+
+    # ── Synthesize (return bytes, no playback) ────────────────────────────
+    def synthesize(self, text: str) -> bytes | None:
+        """Generate audio bytes (mp3/wav) without playing. Returns None on failure."""
+        text = text.strip()
+        if not text or self._aborted.is_set():
+            return None
+        with self._lock:
+            self._init_engine()
+            try:
+                if self._engine == "edge":
+                    return self._synth_edge(text)
+                if self._engine == "qwen3tts":
+                    return self._synth_qwen3tts(text)
+                if self._engine == "openai_tts":
+                    return self._synth_openai_tts(text)
+                # fallback: pyttsx3 → wav bytes
+                return self._synth_pyttsx3(text)
+            except Exception as e:
+                print(f"[TTS] synthesize error ({self._engine}): {e}")
+                return None
+
+    def _synth_edge(self, text: str) -> bytes | None:
+        voice = self.voice or "zh-CN-XiaoxiaoNeural"
+        rate  = "+5%"
+        js    = self._get_js()
+        fd, out_mp3 = tempfile.mkstemp(suffix=".mp3", prefix="tts_")
+        os.close(fd)
+        try:
+            r = subprocess.run(
+                ["node", js, text, out_mp3, voice, rate],
+                capture_output=True, text=True, timeout=20,
+            )
+            if r.returncode != 0:
+                print(f"[TTS] edge synth error: {r.stderr.strip()}"); return None
+            with open(out_mp3, "rb") as f:
+                return f.read()
+        finally:
+            try: os.unlink(out_mp3)
+            except: pass
+
+    def _synth_qwen3tts(self, text: str) -> bytes | None:
+        import dashscope
+        from dashscope.audio.tts_v2 import SpeechSynthesizer
+        dashscope.api_key = self.api_key
+        syn = SpeechSynthesizer(model="cosyvoice-v2-tts",
+                                voice=self.voice or "longxiaochun_v2")
+        result = syn.call(text)
+        audio = getattr(result, "get_audio_data", lambda: None)()
+        if not audio:
+            audio = getattr(result, "audio", None)
+        return audio or None
+
+    def _synth_openai_tts(self, text: str) -> bytes | None:
+        from openai import OpenAI
+        client = OpenAI(api_key=self.openai_api_key)
+        resp = client.audio.speech.create(
+            model="tts-1", voice=self.voice or "nova", input=text
+        )
+        return resp.content
+
+    def _synth_pyttsx3(self, text: str) -> bytes | None:
+        """Fallback: render via pyttsx3 to wav bytes."""
+        try:
+            import pyttsx3, wave, io
+            eng = pyttsx3.init()
+            fd, tmp = tempfile.mkstemp(suffix=".wav")
+            os.close(fd)
+            eng.save_to_file(text, tmp)
+            eng.runAndWait()
+            with open(tmp, "rb") as f:
+                data = f.read()
+            os.unlink(tmp)
+            return data
+        except Exception as e:
+            print(f"[TTS] pyttsx3 synth error: {e}"); return None

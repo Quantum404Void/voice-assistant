@@ -259,8 +259,7 @@ def _get_tts() -> TTS:
     return _tts_engine
 
 def _enqueue_tts(text: str):
-    _get_tts()
-    if _tts_queue: _tts_queue.put(text)
+    pass  # replaced by ws-based TTS; kept for compat
 
 def _reset_asr():
     global _asr
@@ -270,19 +269,11 @@ def _abort_tts():
     """打断当前 TTS 播放（不销毁引擎）"""
     if _tts_engine:
         _tts_engine.abort()
-    if _tts_queue:
-        while not _tts_queue.empty():
-            try: _tts_queue.get_nowait(); _tts_queue.task_done()
-            except: break
 
 def _reset_tts():
     global _tts_engine, _tts_queue, _tts_thread
     if _tts_engine:
         _tts_engine.abort()
-    if _tts_queue:
-        while not _tts_queue.empty():
-            try: _tts_queue.get_nowait(); _tts_queue.task_done()
-            except: break
     _tts_engine = None; _tts_queue = None; _tts_thread = None
 
 def strip_markdown(text: str) -> str:
@@ -435,7 +426,7 @@ async def ws_endpoint(websocket: WebSocket):
             elif mtype in ("audio", "audio_rt"):
                 try:
                     _abort_tts()
-                    text = await _process_audio(asr, msg["data"])
+                    text = await _process_audio(asr, msg["data"], msg.get("mime", "audio/webm"))
                     if not text:
                         await send({"type": "error", "text": "未识别到语音，请重试"}); continue
                     await send({"type": "asr", "text": text})
@@ -536,19 +527,41 @@ async def ws_endpoint(websocket: WebSocket):
         _tts_enabled.pop(cid, None)
 
 # ── Audio processing ──────────────────────────────────────────────────────
-async def _process_audio(asr: ASR, b64_data: str) -> str:
+async def _process_audio(asr: ASR, b64_data: str, mime: str = "audio/webm") -> str:
     import soundfile as sf
     raw_bytes = base64.b64decode(b64_data)
-    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+
+    # 根据 mime 选后缀，避免 ffmpeg 按后缀猜格式出错
+    ext = ".webm"
+    if "ogg" in mime:
+        ext = ".ogg"
+    elif "mp4" in mime or "m4a" in mime:
+        ext = ".mp4"
+
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
         f.write(raw_bytes); tmp_in = f.name
     tmp_out = tmp_in + ".wav"
     try:
         proc = await asyncio.create_subprocess_exec(
             "ffmpeg", "-y", "-i", tmp_in, "-ar", "16000", "-ac", "1", "-f", "wav", tmp_out,
-            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
         )
-        await proc.wait()
-        audio_np, _ = sf.read(tmp_out, dtype="float32")
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed (code {proc.returncode}): {stderr.decode()[-300:]}")
+
+        import os as _os
+        wav_size = _os.path.getsize(tmp_out) if _os.path.exists(tmp_out) else 0
+        if wav_size < 100:
+            raise RuntimeError(f"ffmpeg produced empty wav ({wav_size} bytes)")
+
+        audio_np, sr = sf.read(tmp_out, dtype="float32")
+        if audio_np.ndim > 1:
+            audio_np = audio_np.mean(axis=1)
+
+        rms = float((audio_np**2).mean()**.5)
+        print(f"[ASR] mime={mime} ext={ext} wav={wav_size}B samples={len(audio_np)} rms={rms:.4f}")
+
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, asr.transcribe, audio_np)
     finally:
@@ -585,13 +598,24 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
         if tts_on:
             buf += tok
             if re.search(r'[。！？\.!?\n]', buf):
-                if s := strip_markdown(buf): _enqueue_tts(s)
+                if s := strip_markdown(buf):
+                    await _send_tts_chunk(websocket, s)
                 buf = ""
-    if tts_on and (s := strip_markdown(buf)): _enqueue_tts(s)
+    if tts_on and (s := strip_markdown(buf)):
+        await _send_tts_chunk(websocket, s)
     await send({"type": "done"})
-
-    # realtime 模式需要等 TTS 播完再开麦，避免收到自己声音形成回声循环
-    if tts_on and _tts_queue:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, _tts_queue.join)
     await send({"type": "tts_done"})
+
+
+async def _send_tts_chunk(websocket: WebSocket, text: str):
+    """Synthesize text and send audio bytes to browser via WebSocket."""
+    if not _tts_engine or not text.strip():
+        return
+    loop = asyncio.get_event_loop()
+    try:
+        audio_bytes = await loop.run_in_executor(None, _tts_engine.synthesize, text)
+        if audio_bytes:
+            b64 = base64.b64encode(audio_bytes).decode()
+            await websocket.send_text(json.dumps({"type": "tts_audio", "data": b64}, ensure_ascii=False))
+    except Exception as e:
+        print(f"[TTS] send chunk error: {e}")

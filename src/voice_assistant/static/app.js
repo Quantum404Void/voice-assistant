@@ -189,6 +189,9 @@ function onWsMessage(e) {
 
     case 'models_updated':
       onModelsUpdated(msg.options); break;
+
+    case 'tts_audio':
+      playTtsAudio(msg.data); break;
   }
 }
 
@@ -368,7 +371,9 @@ async function pttStart() {
     addInfo('❌ 麦克风权限拒绝: ' + err.message, true); return;
   }
   pttChunks = [];
-  pttMediaRec = new MediaRecorder(stream);
+  const pttMime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg']
+    .find(m => MediaRecorder.isTypeSupported(m)) || '';
+  pttMediaRec = new MediaRecorder(stream, pttMime ? { mimeType: pttMime } : {});
   pttMediaRec.ondataavailable = e => { if (e.data.size > 0) pttChunks.push(e.data); };
   pttMediaRec.onstop = async () => {
     clearInterval(pttTimerIv);
@@ -381,7 +386,7 @@ async function pttStart() {
     const blob = new Blob(pttChunks, { type: pttMediaRec.mimeType || 'audio/webm' });
     const b64  = toB64(await blob.arrayBuffer());
     isBusy = true;
-    wsSend({ type: 'audio', data: b64 });
+    wsSend({ type: 'audio', data: b64, mime: pttMediaRec.mimeType || 'audio/webm' });
     setWaveLabel('识别中'); setStatus('识别中…', 'yellow');
     pttMediaRec = null;
   };
@@ -496,7 +501,9 @@ function rtStartListening() {
   isBusy = false;
   rtSetState('listening');
   setWaveLabel('监听中');
-  rtMediaRec = new MediaRecorder(rtStream);
+  const rtMime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg']
+    .find(m => MediaRecorder.isTypeSupported(m)) || '';
+  rtMediaRec = new MediaRecorder(rtStream, rtMime ? { mimeType: rtMime } : {});
   rtMediaRec.ondataavailable = e => { if (e.data.size > 0) rtChunks.push(e.data); };
   rtMediaRec.start(50);
   rtEnergyScan();
@@ -529,6 +536,7 @@ async function rtOnSilence() {
   await new Promise(res => { rtMediaRec.onstop = res; rtMediaRec.stop(); });
   if (!rtChunks.length) { isBusy = false; rtStartListening(); return; }
   const blob = new Blob(rtChunks, { type: rtMediaRec.mimeType || 'audio/webm' });
+  // mime passed to server below
   const b64  = toB64(await blob.arrayBuffer());
   wsSend({ type: 'audio_rt', data: b64 });
 }
@@ -581,6 +589,7 @@ $('btn-tts').onclick = () => {
   btn.dataset.tip = ttsEnabled ? 'TTS 开启中，点击关闭' : 'TTS 已关闭，点击开启';
   btn.className   = 'nav-icon-btn' + (ttsEnabled ? ' active' : ' muted');
   wsSend({ type: 'tts_toggle', enabled: ttsEnabled });
+  if (!ttsEnabled) stopTtsAudio();
 };
 
 $('btn-clear').onclick  = () => wsSend({ type: 'clear' });
@@ -951,3 +960,46 @@ bindModelItems();
 initScrollBehavior();
 loadHistory();
 connect();
+
+/* ══════════════════════════════════════════
+   TTS Audio Playback (Web Audio API)
+══════════════════════════════════════════ */
+let _ttsAudioCtx = null;
+let _ttsQueue = Promise.resolve();   // serial playback chain
+
+function playTtsAudio(b64) {
+  if (!ttsEnabled) return;
+
+  // lazy init AudioContext (must be after user gesture)
+  if (!_ttsAudioCtx) {
+    _ttsAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const ctx = _ttsAudioCtx;
+
+  // decode base64 → ArrayBuffer
+  const bin  = atob(b64);
+  const buf  = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+
+  // queue playback serially so chunks don't overlap
+  _ttsQueue = _ttsQueue.then(() => new Promise((resolve) => {
+    ctx.decodeAudioData(buf.buffer, (decoded) => {
+      const src = ctx.createBufferSource();
+      src.buffer = decoded;
+      src.connect(ctx.destination);
+      src.onended = resolve;
+      src.start();
+    }, (err) => {
+      console.warn('[TTS] decodeAudioData error:', err);
+      resolve();
+    });
+  }));
+}
+
+function stopTtsAudio() {
+  if (_ttsAudioCtx) {
+    _ttsAudioCtx.close();
+    _ttsAudioCtx = null;
+  }
+  _ttsQueue = Promise.resolve();
+}
