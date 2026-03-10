@@ -860,6 +860,34 @@ $('chat').addEventListener('dblclick', e => {
   wsSend({ type: 'text', text });
 });
 
+/* ══════════════════════════════════════════
+   Keyboard shortcuts & Help panel
+══════════════════════════════════════════ */
+function openHelp()  { $('help-panel').classList.add('show'); }
+function closeHelp() { $('help-panel').classList.remove('show'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('help-close')?.addEventListener('click', closeHelp);
+  document.querySelector('.help-backdrop')?.addEventListener('click', closeHelp);
+});
+
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement?.tagName;
+  const inInput = tag === 'TEXTAREA' || tag === 'INPUT';
+
+  if (e.key === '?' && !inInput) { e.preventDefault(); openHelp(); return; }
+
+  if (e.key === 'Escape') {
+    if ($('help-panel')?.classList.contains('show'))     { closeHelp(); return; }
+    if ($('settings-panel')?.classList.contains('show')) { closeSettings(); return; }
+    if (realtimeMode) { rtClose(); return; }
+    closeAllPopups(); return;
+  }
+
+  if (e.key === 'l' && e.ctrlKey && !inInput) { e.preventDefault(); wsSend({ type: 'clear' }); return; }
+  if (e.key === 'e' && e.ctrlKey && !inInput) { e.preventDefault(); exportChat(); return; }
+  if (e.key === ',' && e.ctrlKey)             { e.preventDefault(); openSettings(); return; }
+});
 
 loadHistory();
 connect();
