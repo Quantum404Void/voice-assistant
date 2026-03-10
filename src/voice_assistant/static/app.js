@@ -18,7 +18,7 @@ let rtMediaRec = null, rtChunks = [];
 let rtSilenceTimer = null, rtSpeechDetected = false;
 let rtScanId = null;
 const RT_SILENCE_MS = 900;
-const RT_ENERGY_THR = 0.014;
+const RT_ENERGY_THR = 0.008;  // 降低阈值，更容易触发（原0.014）
 
 let pttMediaRec = null, pttChunks = [], pttTimerIv = null;
 let wfAnalyser = null, wfAnimId = null;
@@ -154,7 +154,9 @@ function onWsMessage(e) {
       saveHistory();
       setStatus('就绪', 'green');
       isBusy = false;
+      // TTS 关闭时在 done 里重开；TTS 开启时在 tts stop 里重开（兜底 2s 超时）
       if (realtimeMode && !ttsEnabled) setTimeout(rtStartListening, 300);
+      else if (realtimeMode) setTimeout(() => { if (!aiSpeaking) rtStartListening(); }, 2000);
       break;
 
     case 'tts':
@@ -578,9 +580,10 @@ async function rtOnSilence() {
   await new Promise(res => { rtMediaRec.onstop = res; rtMediaRec.stop(); });
   if (!rtChunks.length) { isBusy = false; rtStartListening(); return; }
   const blob = new Blob(rtChunks, { type: rtMediaRec.mimeType || 'audio/webm' });
-  // mime passed to server below
+  console.log('[RT] sending audio chunks:', rtChunks.length, 'blob size:', blob.size, 'mime:', blob.type);
   const b64  = toB64(await blob.arrayBuffer());
-  wsSend({ type: 'audio_rt', data: b64 });
+  wsSend({ type: 'audio_rt', data: b64, mime: rtMediaRec.mimeType || 'audio/webm' });
+}
 }
 
 function rtDrawOverlayWave() {

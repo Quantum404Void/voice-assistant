@@ -603,6 +603,7 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
         return _abort_flags.get(cid, False)
 
     # 新一轮对话，重置打断标志
+    _get_tts()   # 确保 _tts_engine 已初始化
     if _tts_engine:
         _tts_engine.reset_abort()
 
@@ -651,6 +652,7 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
 
 async def _send_tts_chunk(websocket: WebSocket, text: str, cid: int = -1):
     """Synthesize text and stream audio chunks to browser via WebSocket."""
+    _get_tts()   # 确保 engine 已初始化
     if not _tts_engine or not text.strip():
         return
     if _abort_flags.get(cid, False):
