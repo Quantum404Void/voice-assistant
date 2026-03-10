@@ -17,7 +17,10 @@
   <nav id="navbar">
     <div class="nav-left">
       <div class="nav-logo">🔧</div>
-      <span class="nav-title">小新</span>
+      <div>
+        <div class="nav-title">小新</div>
+        <div class="nav-subtitle">AI · 语音 · 多模型</div>
+      </div>
     </div>
 
     <div class="nav-center">
@@ -67,13 +70,15 @@
           <div class="vo-bar"></div><div class="vo-bar"></div>
         </div>
       </div>
-      <h2>你好，我是小新</h2>
-      <p>语音 · 文字 · 多模型 AI 助手</p>
+      <div class="welcome-heading">
+        <h2>你好，我是<span class="wh-name">小新</span></h2>
+        <p>语音 · 文字 · 多模型 AI 助手</p>
+      </div>
       <div class="welcome-chips">
-        <span class="chip" id="chip-ptt">🎤 按住录音</span>
-        <span class="chip" id="chip-space">␣ Space PTT</span>
-        <span class="chip" id="chip-rt">🎙 实时对话</span>
-        <span class="chip" onclick="document.getElementById('text-input').focus()">⌨ 文字输入</span>
+        <span class="chip wc-chip" id="chip-ptt"><span class="wc-icon">🎤</span>按住录音</span>
+        <span class="chip wc-chip" id="chip-space"><span class="wc-icon">␣</span>Space PTT</span>
+        <span class="chip wc-chip" id="chip-rt"><span class="wc-icon">🎙</span>实时对话</span>
+        <span class="chip wc-chip" onclick="document.getElementById('text-input').focus()"><span class="wc-icon">⌨</span>文字输入</span>
       </div>
     </div>
 
