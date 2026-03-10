@@ -1357,3 +1357,370 @@ body::after {
   opacity: 1 !important;
   transform: scale(1) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   macOS STYLE THEME OVERRIDE (2026-03-10)
+   灵感: macOS Sonoma Dark / SF Pro / vibrancy material
+══════════════════════════════════════════════════════════════════════ */
+
+/* ── Token 覆盖 ── */
+:root {
+  /* macOS dark palette */
+  --bg:        #1c1c1e;       /* systemBackground dark */
+  --surface:   rgba(44,44,46,.82);  /* secondarySystemBackground */
+  --s2:        #2c2c2e;
+  --s3:        #3a3a3c;
+  --s4:        #48484a;
+
+  /* macOS system blue / purple */
+  --accent:    #0a84ff;       /* systemBlue */
+  --accent2:   #bf5af2;       /* systemPurple */
+  --accent3:   #32d74b;       /* systemGreen */
+  --accent4:   #ff375f;       /* systemRed */
+
+  /* text hierarchy */
+  --text:      #f5f5f7;       /* label */
+  --text2:     #aeaeb2;       /* secondaryLabel */
+  --text3:     #636366;       /* tertiaryLabel */
+  --text4:     #3a3a3c;       /* quaternaryLabel */
+
+  /* borders */
+  --border:    rgba(255,255,255,.08);
+  --border2:   rgba(255,255,255,.12);
+
+  --green:     #32d74b;
+  --red:       #ff375f;
+  --yellow:    #ffd60a;
+
+  /* user bubble: macOS Messages blue */
+  --user-bg:   linear-gradient(160deg,#0a84ff,#0a72e0);
+  --ai-bg:     rgba(44,44,46,.92);
+
+  /* geometry */
+  --r:   16px;
+  --r2:  10px;
+  --r3:  6px;
+  --nav-h: 52px;
+  --bot-h: 68px;
+}
+
+/* ── Font: SF Pro stack ── */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased !important;
+  background: var(--bg) !important;
+}
+
+/* ── Remove neon blobs, replace with subtle macOS ambient ── */
+body::before {
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(10,132,255,.07) 0%, transparent 65%) !important;
+  top: -250px; left: -200px;
+  filter: blur(80px) !important;
+  opacity: 1 !important;
+  animation: none !important;
+}
+body::after {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(191,90,242,.06) 0%, transparent 65%) !important;
+  bottom: -150px; right: -100px;
+  filter: blur(80px) !important;
+  opacity: 1 !important;
+  animation: none !important;
+}
+#app::before {
+  display: none !important;
+}
+
+/* ── Navbar: macOS toolbar vibrancy ── */
+#navbar {
+  background: rgba(28,28,30,.78) !important;
+  backdrop-filter: blur(48px) saturate(250%) brightness(1.06) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(250%) brightness(1.06) !important;
+  border-bottom: .5px solid rgba(255,255,255,.1) !important;
+  box-shadow: 0 .5px 0 rgba(0,0,0,.35) !important;
+  height: var(--nav-h);
+}
+
+/* navbar gradient underline → macOS accent line */
+#navbar::after {
+  background: rgba(10,132,255,.6) !important;
+  height: .5px !important;
+  opacity: .5 !important;
+}
+
+/* ── nav-logo: macOS app icon style ── */
+.nav-logo {
+  background: linear-gradient(160deg,#1c5bff,#0a3dcc) !important;
+  border: none !important;
+  box-shadow: 0 2px 10px rgba(10,84,255,.5),
+              inset 0 1px 0 rgba(255,255,255,.15) !important;
+  border-radius: 10px !important;
+}
+.nav-logo:hover {
+  box-shadow: 0 4px 16px rgba(10,84,255,.65),
+              inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+
+/* nav-title: SF Pro bold */
+.nav-title {
+  font-weight: 700 !important;
+  letter-spacing: -.02em !important;
+  background: linear-gradient(140deg, #f5f5f7 0%, #aeaeb2 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: none !important;
+  font-size: .9rem !important;
+}
+.nav-subtitle {
+  color: rgba(174,174,178,.7) !important;
+  font-size: .52rem !important;
+  letter-spacing: .05em !important;
+}
+
+/* hdr-chip: macOS segmented control / pill */
+.hdr-chip {
+  background: rgba(255,255,255,.08) !important;
+  border: .5px solid rgba(255,255,255,.12) !important;
+  border-radius: 8px !important;
+  color: var(--text2) !important;
+  font-size: .72rem !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  padding: 5px 11px !important;
+  letter-spacing: -.01em !important;
+  transition: background .12s, box-shadow .12s !important;
+}
+.hdr-chip:hover {
+  background: rgba(255,255,255,.14) !important;
+  border-color: rgba(255,255,255,.18) !important;
+  transform: none !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+}
+.hdr-chip.open {
+  background: rgba(10,132,255,.22) !important;
+  border-color: rgba(10,132,255,.4) !important;
+  color: #0a84ff !important;
+  transform: none !important;
+  box-shadow: 0 0 0 3px rgba(10,132,255,.15) !important;
+}
+.chip-label { font-weight: 500 !important; }
+.chip-arrow { color: rgba(174,174,178,.6) !important; }
+.hdr-chip.open .chip-arrow { color: #0a84ff !important; }
+
+/* status-pill */
+.status-pill {
+  background: rgba(255,255,255,.06) !important;
+  border: .5px solid rgba(255,255,255,.1) !important;
+  box-shadow: none !important;
+  border-radius: 7px !important;
+  font-size: .65rem !important;
+  padding: 4px 10px !important;
+}
+
+/* nav-icon-btn */
+.nav-icon-btn {
+  border-radius: 7px !important;
+  backdrop-filter: none !important;
+}
+.nav-icon-btn:hover {
+  background: rgba(255,255,255,.1) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.nav-icon-btn.active {
+  background: rgba(10,132,255,.2) !important;
+  border-color: rgba(10,132,255,.35) !important;
+  color: #0a84ff !important;
+  box-shadow: none !important;
+}
+.nav-icon-btn.active-green {
+  background: rgba(50,215,75,.15) !important;
+  border-color: rgba(50,215,75,.35) !important;
+  color: var(--green) !important;
+}
+
+/* ── Bottom bar ── */
+#bottom-bar {
+  background: rgba(28,28,30,.82) !important;
+  backdrop-filter: blur(48px) saturate(250%) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(250%) brightness(1.05) !important;
+  border-top: .5px solid rgba(255,255,255,.1) !important;
+  box-shadow: 0 -.5px 0 rgba(0,0,0,.35) !important;
+}
+#bottom-bar::before { display: none !important; }
+
+/* ── Input wrap: macOS NSTextField ── */
+#input-wrap {
+  background: rgba(255,255,255,.07) !important;
+  border: .5px solid rgba(255,255,255,.14) !important;
+  border-radius: 13px !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.25) !important;
+  backdrop-filter: none !important;
+}
+#input-wrap:focus-within {
+  border-color: rgba(10,132,255,.6) !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.2),
+              0 0 0 3px rgba(10,132,255,.25) !important;
+}
+#text-input { font-size: .875rem !important; line-height: 1.55 !important; }
+
+/* mic/send: macOS circular button */
+#btn-mic, .mic-btn {
+  background: #0a84ff !important;
+  box-shadow: 0 2px 8px rgba(10,132,255,.5) !important;
+  border-radius: 50% !important;
+  width: 36px !important; height: 36px !important;
+}
+#btn-mic:hover, .mic-btn:hover {
+  background: #1a8fff !important;
+  box-shadow: 0 4px 14px rgba(10,132,255,.6) !important;
+  transform: none !important; filter: none !important;
+}
+#btn-mic.recording, .mic-btn.recording {
+  background: #ff375f !important;
+  box-shadow: 0 2px 10px rgba(255,55,95,.6) !important;
+}
+#btn-send, .send-btn {
+  background: rgba(255,255,255,.1) !important;
+  color: var(--text2) !important;
+  border: .5px solid rgba(255,255,255,.14) !important;
+  border-radius: 50% !important;
+  width: 36px !important; height: 36px !important;
+  box-shadow: none !important;
+}
+#btn-send:hover, .send-btn:hover {
+  background: #0a84ff !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(10,132,255,.5) !important;
+  transform: none !important;
+}
+
+/* ── Chat bubbles: iMessage style ── */
+.bubble.user {
+  background: linear-gradient(160deg,#0a84ff,#0878e0) !important;
+  border: none !important;
+  box-shadow: 0 2px 12px rgba(10,132,255,.3) !important;
+  color: #fff !important;
+  border-radius: 18px 4px 18px 18px !important;
+}
+.bubble.ai {
+  background: rgba(44,44,46,.95) !important;
+  border: .5px solid rgba(255,255,255,.1) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3) !important;
+  border-radius: 4px 18px 18px 18px !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+/* ── Voice orb: subdued, not neon ── */
+.vo-core {
+  background:
+    radial-gradient(circle at 32% 28%, rgba(10,132,255,.2) 0%,transparent 45%),
+    radial-gradient(circle at 50% 50%, #1c1c1e 0%, #111113 100%) !important;
+  border: .5px solid rgba(255,255,255,.15) !important;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6),
+              0 0 40px rgba(10,132,255,.18),
+              inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+.vo-ring {
+  border: 1px solid rgba(255,255,255,.07) !important;
+}
+.vo-bar {
+  background: linear-gradient(180deg,#0a84ff 0%,#0a5dcc 100%) !important;
+  box-shadow: 0 0 4px rgba(10,132,255,.5) !important;
+}
+
+/* welcome heading */
+.welcome-heading h2 {
+  font-weight: 700 !important;
+  letter-spacing: -.03em !important;
+}
+.wh-name {
+  background: linear-gradient(135deg,#0a84ff 0%,#bf5af2 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: none !important;
+}
+
+/* welcome chips */
+.wc-chip {
+  background: rgba(255,255,255,.07) !important;
+  border: .5px solid rgba(255,255,255,.12) !important;
+  border-radius: 10px !important;
+  color: var(--text2) !important;
+  box-shadow: none !important;
+}
+.wc-chip:hover {
+  background: rgba(255,255,255,.12) !important;
+  border-color: rgba(10,132,255,.4) !important;
+  color: var(--text) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25) !important;
+}
+
+/* ── Settings panel: macOS sheet ── */
+.sp-dialog {
+  background: rgba(30,30,32,.96) !important;
+  border: .5px solid rgba(255,255,255,.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,.7),
+              0 0 0 .5px rgba(255,255,255,.06) !important;
+}
+.sp-header {
+  border-bottom: .5px solid rgba(255,255,255,.08) !important;
+}
+.sp-tab {
+  border-radius: 7px !important;
+  font-size: .73rem !important;
+}
+.sp-tab.active {
+  background: rgba(10,132,255,.2) !important;
+  color: #0a84ff !important;
+  border-bottom: none !important;
+}
+
+/* ── Popup menus: macOS context menu feel ── */
+.popup-menu {
+  background: rgba(36,36,38,.96) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  border: .5px solid rgba(255,255,255,.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5),
+              0 0 0 .5px rgba(255,255,255,.04) !important;
+}
+.popup-item {
+  border-radius: 7px !important;
+  margin: 2px 4px !important;
+}
+.popup-item:hover {
+  background: rgba(10,132,255,.18) !important;
+}
+.popup-item.active {
+  background: rgba(10,132,255,.25) !important;
+}
+
+/* ── Toast: macOS notification pill ── */
+#toast {
+  background: rgba(36,36,38,.96) !important;
+  backdrop-filter: blur(30px) !important;
+  border: .5px solid rgba(255,255,255,.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45) !important;
+  font-size: .78rem !important;
+}
+
+/* ── Scroll bar: macOS overlay scroller ── */
+* {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255,255,255,.18) transparent !important;
+}
+::-webkit-scrollbar { width: 5px !important; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.15) !important;
+  border-radius: 10px !important;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.28) !important; }
