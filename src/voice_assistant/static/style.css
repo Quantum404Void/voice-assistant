@@ -1133,3 +1133,227 @@ kbd{
 }
 /* 实时模式绿色脉冲 */
 #bottom-bar.rt-on #wave-label { color: var(--green); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   GLOBAL VISUAL UPGRADE (2026-03-10)
+══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Background ambient blobs ── */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(120px);
+  opacity: .18;
+}
+body::before {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, #3a5aff 0%, transparent 70%);
+  top: -200px; left: -150px;
+  animation: blob-drift1 18s ease-in-out infinite alternate;
+}
+body::after {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #9b5dff 0%, transparent 70%);
+  bottom: -100px; right: -100px;
+  animation: blob-drift2 22s ease-in-out infinite alternate;
+}
+@keyframes blob-drift1 {
+  0%   { transform: translate(0,0) scale(1);    }
+  50%  { transform: translate(80px,60px) scale(1.15); }
+  100% { transform: translate(20px,120px) scale(.9); }
+}
+@keyframes blob-drift2 {
+  0%   { transform: translate(0,0) scale(1);    }
+  50%  { transform: translate(-60px,-80px) scale(1.2); }
+  100% { transform: translate(-120px,-30px) scale(.85); }
+}
+
+/* third accent blob (center-ish) */
+#app::before {
+  content: '';
+  position: fixed;
+  width: 400px; height: 300px;
+  background: radial-gradient(ellipse, rgba(52,217,179,.12) 0%, transparent 70%);
+  bottom: 30%; right: 20%;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: blob-drift3 26s ease-in-out infinite alternate;
+}
+@keyframes blob-drift3 {
+  0%   { transform: translate(0,0);   }
+  100% { transform: translate(-80px, 60px); }
+}
+
+/* ── 2. Navbar glass ── */
+#navbar {
+  background: rgba(8,11,24,.72) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  border-bottom: 1px solid rgba(108,143,255,.14) !important;
+  box-shadow: 0 1px 0 rgba(108,143,255,.08), 0 8px 32px rgba(0,0,0,.4) !important;
+}
+
+/* ── 3. Bottom bar glass ── */
+#bottom-bar {
+  background: rgba(8,11,24,.72) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  border-top: 1px solid rgba(108,143,255,.14) !important;
+  box-shadow: 0 -1px 0 rgba(108,143,255,.08), 0 -8px 32px rgba(0,0,0,.35) !important;
+}
+
+/* ── 4. Input wrap glass ── */
+#input-wrap {
+  background: rgba(255,255,255,.03) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(108,143,255,.18) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 2px 12px rgba(0,0,0,.3) !important;
+  border-radius: 16px !important;
+}
+#input-wrap:focus-within {
+  border-color: rgba(108,143,255,.5) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06),
+              0 0 0 3px rgba(108,143,255,.1),
+              0 4px 20px rgba(108,143,255,.15) !important;
+}
+
+/* ── 5. Mic button pulse glow ── */
+#btn-mic, .mic-btn {
+  box-shadow: 0 4px 16px rgba(108,143,255,.45),
+              0 0 0 0 rgba(108,143,255,.3) !important;
+}
+#btn-mic:hover, .mic-btn:hover {
+  box-shadow: 0 6px 24px rgba(108,143,255,.6),
+              0 0 30px rgba(108,143,255,.2) !important;
+}
+
+/* ── 6. Voice orb upgrade ── */
+.vo-core {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(180,200,255,.25) 0%, transparent 40%),
+    radial-gradient(circle at 68% 70%, rgba(167,139,250,.22) 0%, transparent 35%),
+    radial-gradient(circle at 50% 50%, #1c2d68 0%, #0e1828 55%, #060d1e 100%) !important;
+  box-shadow:
+    0 0 60px rgba(108,143,255,.35),
+    0 0 120px rgba(108,143,255,.12),
+    inset 0 0 40px rgba(108,143,255,.1) !important;
+  border: 1px solid rgba(108,143,255,.5) !important;
+}
+.vo-ring {
+  border: 1.5px solid rgba(108,143,255,.22) !important;
+}
+.vo-ring:nth-child(1) { border-color: rgba(108,143,255,.28) !important; }
+
+/* EQ bars 发光 */
+.vo-bar {
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent2) 100%) !important;
+  box-shadow: 0 0 6px rgba(108,143,255,.6) !important;
+  border-radius: 3px !important;
+}
+
+/* ── 7. Chat bubbles upgrade ── */
+.bubble.user {
+  background: linear-gradient(145deg,#1e3278,#243898,#1e2a72) !important;
+  border: 1px solid rgba(108,143,255,.3) !important;
+  box-shadow: 0 4px 24px rgba(108,143,255,.2),
+              inset 0 1px 0 rgba(255,255,255,.07) !important;
+}
+.bubble.ai {
+  background: rgba(14,18,34,.85) !important;
+  border: 1px solid rgba(108,143,255,.1) !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,.35),
+              inset 0 1px 0 rgba(255,255,255,.03) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+/* ── 8. Scroll bar global upgrade ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(108,143,255,.25) transparent;
+}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(108,143,255,.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(108,143,255,.4); }
+
+/* ── 9. Welcome screen subtle depth ── */
+#welcome-screen {
+  background: radial-gradient(ellipse 60% 55% at 50% 45%,
+    rgba(30,50,120,.12) 0%, transparent 70%) !important;
+}
+
+/* ── 10. nav-icon-btn polish ── */
+.nav-icon-btn {
+  backdrop-filter: blur(8px) !important;
+}
+.nav-icon-btn:hover {
+  background: rgba(108,143,255,.12) !important;
+  box-shadow: 0 2px 10px rgba(108,143,255,.15) !important;
+}
+.nav-icon-btn.active {
+  box-shadow: 0 0 14px rgba(108,143,255,.3),
+              inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+
+/* ── Chat layout centering & bubble polish ── */
+#chat {
+  padding: 28px clamp(16px, calc(50% - 420px), 80px) !important;
+  gap: 20px !important;
+}
+
+.msg { align-items: flex-start; }
+.msg.user { flex-direction: row-reverse; }
+
+/* bubble max-width */
+.bubble {
+  max-width: min(680px, 78%) !important;
+  line-height: 1.65 !important;
+  font-size: .875rem !important;
+}
+
+/* user bubble */
+.bubble.user {
+  padding: 11px 16px !important;
+  border-radius: 18px 4px 18px 18px !important;
+}
+
+/* AI bubble */
+.bubble.ai {
+  padding: 13px 18px !important;
+  border-radius: 4px 18px 18px 18px !important;
+}
+
+/* avatar circle */
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* timestamp */
+.msg-time {
+  font-size: .58rem !important;
+  color: var(--text4) !important;
+  margin-top: 4px !important;
+  padding: 0 4px !important;
+}
+
+/* copy button polish */
+.copy-btn {
+  opacity: 0;
+  transition: opacity .2s, transform .15s !important;
+  transform: scale(.88);
+}
+.bubble:hover .copy-btn,
+.msg:hover .copy-btn {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
