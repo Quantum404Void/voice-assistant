@@ -550,24 +550,39 @@ async def _process_audio(asr: ASR, b64_data: str, mime: str = "audio/webm") -> s
     import soundfile as sf
     raw_bytes = base64.b64decode(b64_data)
 
-    # 根据 mime 选后缀，避免 ffmpeg 按后缀猜格式出错
-    ext = ".webm"
+    # 根据 mime 选后缀和 ffmpeg 输入格式
     if "ogg" in mime:
-        ext = ".ogg"
+        ext, fmt = ".ogg", "ogg"
     elif "mp4" in mime or "m4a" in mime:
-        ext = ".mp4"
+        ext, fmt = ".mp4", "mp4"
+    elif "wav" in mime:
+        ext, fmt = ".wav", "wav"
+    else:
+        ext, fmt = ".webm", "matroska"  # audio/webm 或 audio/webm;codecs=opus (Matroska容器)
+
+    print(f"[ASR] recv mime={mime} bytes={len(raw_bytes)} fmt={fmt}")
 
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
         f.write(raw_bytes); tmp_in = f.name
     tmp_out = tmp_in + ".wav"
     try:
+        # -f 强制指定输入格式，避免 ffmpeg 按头部猜格式失败
         proc = await asyncio.create_subprocess_exec(
-            "ffmpeg", "-y", "-i", tmp_in, "-ar", "16000", "-ac", "1", "-f", "wav", tmp_out,
+            "ffmpeg", "-y", "-f", fmt, "-i", tmp_in,
+            "-ar", "16000", "-ac", "1", "-f", "wav", tmp_out,
             stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise RuntimeError(f"ffmpeg failed (code {proc.returncode}): {stderr.decode()[-300:]}")
+            # fallback: 不指定 -f，让 ffmpeg 自动探测
+            proc2 = await asyncio.create_subprocess_exec(
+                "ffmpeg", "-y", "-i", tmp_in,
+                "-ar", "16000", "-ac", "1", "-f", "wav", tmp_out,
+                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr2 = await proc2.communicate()
+            if proc2.returncode != 0:
+                raise RuntimeError(f"ffmpeg failed (code {proc2.returncode}): {stderr2.decode()[-400:]}")
 
         import os as _os
         wav_size = _os.path.getsize(tmp_out) if _os.path.exists(tmp_out) else 0
@@ -616,33 +631,46 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
 
     def run():
         def on_tok(tok): loop.call_soon_threadsafe(q.put_nowait, tok)
-        try:   llm.chat_stream(text, on_token=on_tok)
-        except Exception as e: loop.call_soon_threadsafe(q.put_nowait, f"\n[错误: {e}]")
-        finally: loop.call_soon_threadsafe(q.put_nowait, None)
+        try:
+            result = llm.chat_stream(text, on_token=on_tok)
+            print(f"[LLM] stream done, result len={len(result)}")
+        except Exception as e:
+            print(f"[LLM] stream error: {e}")
+            loop.call_soon_threadsafe(q.put_nowait, f"\n[错误: {e}]")
+        finally:
+            loop.call_soon_threadsafe(q.put_nowait, None)
 
     threading.Thread(target=run, daemon=True).start()
 
     buf = ""
     sentence_idx = 0
+    full_reply = ""
     while True:
         tok = await q.get()
         if tok is None: break
         if is_aborted(): break          # LLM token 生产中被打断
         await send({"type": "token", "text": tok})
+        full_reply += tok
         if tts_on:
             buf += tok
             if re.search(r'[。！？\.!?\n]', buf):
                 if s := strip_markdown(buf):
-                    if is_aborted(): break
+                    aborted_now = is_aborted()
+                    print(f"[TTS] sentence ready, aborted={aborted_now} s={repr(s[:30])}")
+                    if aborted_now: break
                     if sentence_idx == 0:
                         await send({"type": "tts", "state": "sentence_start"})
+                    print(f"[TTS] sending sentence #{sentence_idx}: {repr(s[:30])}")
                     await _send_tts_chunk(websocket, s, cid)
                     sentence_idx += 1
                 buf = ""
 
-    if tts_on and (s := strip_markdown(buf)):
+    tail = strip_markdown(buf)
+    print(f"[TTS] loop end. tts_on={tts_on} full_reply={repr(full_reply[:50])} tail={repr(tail)} aborted={is_aborted()}")
+    if tts_on and tail:
         if not is_aborted():
-            await _send_tts_chunk(websocket, s, cid)
+            print(f"[TTS] sending tail: {repr(tail[:30])}")
+            await _send_tts_chunk(websocket, tail, cid)
 
     await send({"type": "done"})
     if tts_on:
@@ -658,6 +686,7 @@ async def _send_tts_chunk(websocket: WebSocket, text: str, cid: int = -1):
     if _abort_flags.get(cid, False):
         return
     engine = getattr(_tts_engine, '_engine', None)
+    print(f"[TTS] chunk engine={engine} text={repr(text[:20])}")
 
     try:
         if engine == "edge":

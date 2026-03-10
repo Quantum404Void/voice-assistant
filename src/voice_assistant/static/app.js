@@ -584,7 +584,6 @@ async function rtOnSilence() {
   const b64  = toB64(await blob.arrayBuffer());
   wsSend({ type: 'audio_rt', data: b64, mime: rtMediaRec.mimeType || 'audio/webm' });
 }
-}
 
 function rtDrawOverlayWave() {
   if (!rtAudioCtx) return;
