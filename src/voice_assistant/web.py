@@ -603,6 +603,7 @@ async def _process_audio(asr: ASR, b64_data: str, mime: str = "audio/webm") -> s
 
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, asr.transcribe, audio_np)
+        result = (result or "").strip()
         print(f"[ASR] result={repr(result)}")
         return result
     finally:
@@ -634,7 +635,6 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
         def on_tok(tok): loop.call_soon_threadsafe(q.put_nowait, tok)
         try:
             result = llm.chat_stream(text, on_token=on_tok)
-            print(f"[LLM] stream done, result len={len(result)}")
         except Exception as e:
             print(f"[LLM] stream error: {e}")
             loop.call_soon_threadsafe(q.put_nowait, f"\n[错误: {e}]")
@@ -657,8 +657,7 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
             if re.search(r'[。！？\.!?\n]', buf):
                 s = strip_markdown(buf)
                 if s:
-                    aborted_now = is_aborted()
-                    if aborted_now: break
+                    if is_aborted(): break
                     if sentence_idx == 0:
                         await send({"type": "tts", "state": "sentence_start"})
                     print(f"[TTS] → {repr(s[:40])}", flush=True)

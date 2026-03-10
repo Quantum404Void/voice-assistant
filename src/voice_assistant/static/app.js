@@ -192,13 +192,19 @@ function onWsMessage(e) {
       else setWaveLabel('识别完成');
       break;
 
-    case 'error':
+    case 'error': {
       removeTyping();
-      addInfo('❌ ' + msg.text, true);
+      // 截断过长的技术错误，避免堆栈溢出聊天区
+      const rawErr = msg.text || '未知错误';
+      const shortErr = rawErr.includes('ffmpeg') || rawErr.length > 80
+        ? (rawErr.startsWith('音频') ? '❌ 音频处理失败，请重试' : '❌ ' + rawErr.substring(0, 60) + '…')
+        : '❌ ' + rawErr;
+      addInfo(shortErr, true);
       setStatus('就绪', 'green');
       isBusy = false;
       if (realtimeMode) setTimeout(rtStartListening, 800);
       break;
+    }
 
     case 'status':
       setStatus(msg.text, msg.color || 'green');
