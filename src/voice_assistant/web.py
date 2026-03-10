@@ -281,24 +281,25 @@ def _reset_tts():
     _tts_engine = None; _tts_queue = None; _tts_thread = None
 
 def strip_markdown(text: str) -> str:
-    """清理 markdown 和 emoji，返回适合 TTS 朗读的纯文本"""
-    import unicodedata
+    """清理 markdown 标记和 emoji，返回适合 TTS 朗读的纯文本"""
+    # 去除 markdown 格式
     text = re.sub(r'\*+([^*]+)\*+', r'\1', text)
     text = re.sub(r'`+([^`]*)`+', r'\1', text)
     text = re.sub(r'#{1,6}\s*', '', text)
     text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-    text = re.sub(r'!\[[^\]]*\]\([^\)]+\)', '', text)   # 图片
-    # 去除 emoji（Unicode 表情符号）
+    text = re.sub(r'!\[[^\]]*\]\([^\)]+\)', '', text)
+    # 去除 emoji（只删 emoji 范围，不碰中文）
     text = re.sub(
-        r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF'
-        r'\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF'
-        r'\U00002702-\U000027B0\U000024C2-\U0001F251'
-        r'\U0001f926-\U0001f937\U00010000-\U0010ffff'
-        r'\u2640-\u2642\u2600-\u2B55\u200d\u23cf\u23e9'
-        r'\u231a\ufe0f\u3030]+',
+        r'[\U0001F600-\U0001F64F'   # Emoticons
+        r'\U0001F300-\U0001F5FF'    # Misc Symbols and Pictographs
+        r'\U0001F680-\U0001F6FF'    # Transport and Map
+        r'\U0001F1E0-\U0001F1FF'    # Flags
+        r'\U0001F900-\U0001F9FF'    # Supplemental Symbols
+        r'\u2702-\u27B0'            # Dingbats
+        r'\u2600-\u26FF'            # Misc symbols
+        r'\uFE0F\u200D\u20E3]+',    # Variation selectors, ZWJ, combining
         '', text, flags=re.UNICODE
     )
-    # 清理多余空白
     text = re.sub(r'\s{2,}', ' ', text)
     return text.strip()
 
@@ -654,22 +655,21 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
         if tts_on:
             buf += tok
             if re.search(r'[。！？\.!?\n]', buf):
-                if s := strip_markdown(buf):
+                s = strip_markdown(buf)
+                if s:
                     aborted_now = is_aborted()
-                    print(f"[TTS] sentence ready, aborted={aborted_now} s={repr(s[:30])}")
                     if aborted_now: break
                     if sentence_idx == 0:
                         await send({"type": "tts", "state": "sentence_start"})
-                    print(f"[TTS] sending sentence #{sentence_idx}: {repr(s[:30])}")
+                    print(f"[TTS] → {repr(s[:40])}", flush=True)
                     await _send_tts_chunk(websocket, s, cid)
                     sentence_idx += 1
                 buf = ""
 
     tail = strip_markdown(buf)
-    print(f"[TTS] loop end. tts_on={tts_on} full_reply={repr(full_reply[:50])} tail={repr(tail)} aborted={is_aborted()}")
     if tts_on and tail:
         if not is_aborted():
-            print(f"[TTS] sending tail: {repr(tail[:30])}")
+            print(f"[TTS] tail → {repr(tail[:40])}", flush=True)
             await _send_tts_chunk(websocket, tail, cid)
 
     await send({"type": "done"})
@@ -685,8 +685,15 @@ async def _send_tts_chunk(websocket: WebSocket, text: str, cid: int = -1):
         return
     if _abort_flags.get(cid, False):
         return
-    engine = getattr(_tts_engine, '_engine', None)
-    print(f"[TTS] chunk engine={engine} text={repr(text[:20])}")
+    # 确保 _engine 已设置（lazy init）
+    if _tts_engine._engine is None:
+        try:
+            _tts_engine._init_engine()
+        except Exception as e:
+            print(f"[TTS] init engine failed: {e}")
+            return
+    engine = _tts_engine._engine
+    print(f"[TTS] engine={engine} → {repr(text[:30])}", flush=True)
 
     try:
         if engine == "edge":

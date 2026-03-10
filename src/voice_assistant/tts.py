@@ -121,10 +121,17 @@ class TTS:
             self._engine = "ollama_tts"; return
 
         if name in ("auto", "edge"):
-            if _EDGE_TTS_MOD.exists():
+            # 优先用 python edge-tts 包（pip install edge-tts）
+            try:
+                import edge_tts as _et  # noqa
                 self._engine = "edge"; return
+            except ImportError:
+                pass
+            # fallback: node-edge-tts
+            if _EDGE_TTS_MOD.exists():
+                self._engine = "edge_node"; return
             if name == "edge":
-                raise RuntimeError("node-edge-tts not available")
+                raise RuntimeError("edge-tts not available (pip install edge-tts)")
 
         if name in ("auto", "qwen3tts", "cosyvoice") and self.api_key:
             try:

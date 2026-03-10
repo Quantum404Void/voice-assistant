@@ -166,11 +166,14 @@ function onWsMessage(e) {
         if (mb) { mb.dataset.tip = '点击打断 AI 说话'; mb.classList.add('ai-speaking'); }
       } else if (msg.state === 'stop') {
         aiSpeaking = false;
-        stopTtsAudio();
+        // 不调用 stopTtsAudio()：队列里的音频块让它自然播完
+        // stopTtsAudio() 只在用户主动打断时调用
         const mb = $('btn-mic');
         if (mb) { mb.dataset.tip = '按住说话'; mb.classList.remove('ai-speaking'); }
-        // 实时模式：TTS 结束立刻重开监听（不等 tts_done）
-        if (realtimeMode) setTimeout(rtStartListening, 200);
+        // 实时模式：等音频队列播完后再开麦，用 ttsQueue 等待
+        if (realtimeMode) {
+          _ttsQueue.then(() => { if (realtimeMode) setTimeout(rtStartListening, 200); });
+        }
       }
       break;
 

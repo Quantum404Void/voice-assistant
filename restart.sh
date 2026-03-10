@@ -16,7 +16,7 @@ pkill -f "uvicorn src.voice_assistant.web" 2>/dev/null
 sleep 1
 
 cd /home/void/Projects/voice-assistant
-nohup uv run python -u -m uvicorn src.voice_assistant.web:app \
+nohup env PYTHONUNBUFFERED=1 uv run python -u -m uvicorn src.voice_assistant.web:app \
   --host 0.0.0.0 --port 8765 > /tmp/va.log 2>&1 &
 
 echo $! > "$PID_FILE"
