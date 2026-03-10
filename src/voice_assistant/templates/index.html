@@ -16,13 +16,12 @@
   <!-- ── Sidebar ── -->
   <aside id="sidebar">
     <div class="sb-logo">🔧</div>
-
     <div class="sb-top">
-      <button class="sb-btn active" id="btn-tts" data-tip="TTS 开/关">🔊</button>
-      <button class="sb-btn" id="btn-rt" data-tip="实时对话">🎙</button>
-      <button class="sb-btn" id="btn-settings" data-tip="设置">⚙️</button>
+      <button class="sb-btn active" id="btn-tts"      data-tip="TTS 开/关">🔊</button>
+      <button class="sb-btn"        id="btn-rt"        data-tip="实时对话">🎙</button>
+      <button class="sb-btn"        id="btn-export"    data-tip="导出对话">📥</button>
+      <button class="sb-btn"        id="btn-settings"  data-tip="设置">⚙️</button>
     </div>
-
     <div class="sb-bot">
       <button class="sb-btn sb-danger" id="btn-clear" data-tip="清空对话">🗑</button>
     </div>
@@ -32,17 +31,35 @@
   <header id="header">
     <div class="hdr-title">
       <h1>小新语音助手</h1>
-      <div class="sub" id="hdr-sub">就绪</div>
     </div>
     <div class="hdr-right">
+      <!-- LLM chip -->
+      <button class="hdr-chip" id="chip-llm-btn">
+        <span class="chip-icon">🧠</span>
+        <span class="chip-label" id="chip-llm-label">本地</span>
+        <span class="chip-arrow">▾</span>
+      </button>
+      <!-- ASR chip -->
+      <button class="hdr-chip" id="chip-asr-btn">
+        <span class="chip-icon">🎤</span>
+        <span class="chip-label" id="chip-asr-label">{{asr_label}}</span>
+        <span class="chip-arrow">▾</span>
+      </button>
+      <!-- TTS chip -->
+      <button class="hdr-chip" id="chip-tts-btn">
+        <span class="chip-icon">🔉</span>
+        <span class="chip-label" id="chip-tts-label">{{tts_label}}</span>
+        <span class="chip-arrow">▾</span>
+      </button>
+      <!-- Status -->
       <div class="status-pill">
-        <div class="status-dot green" id="status-dot"></div>
-        <span id="status-text">连接中...</span>
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">连接中…</span>
       </div>
     </div>
   </header>
 
-  <!-- ── Welcome（独立 grid 区域，flex 居中）── -->
+  <!-- ── Welcome (shares grid-area with #chat) ── -->
   <div id="welcome-screen">
     <div class="voice-orb">
       <div class="vo-ring"></div><div class="vo-ring"></div><div class="vo-ring"></div>
@@ -53,19 +70,19 @@
       </div>
     </div>
     <h2>你好，我是小新</h2>
-    <p>语音 · 文字 · 双模式推理</p>
+    <p>语音 · 文字 · 多模型 AI 助手</p>
     <div class="welcome-chips">
-      <span class="chip" onclick="document.getElementById('text-input').focus()">⌨ 文字</span>
       <span class="chip" id="chip-ptt">🎤 按住录音</span>
       <span class="chip" id="chip-space">␣ Space PTT</span>
-      <span class="chip" id="chip-rt">🎙 实时模式</span>
+      <span class="chip" id="chip-rt">🎙 实时对话</span>
+      <span class="chip" onclick="document.getElementById('text-input').focus()">⌨ 文字输入</span>
     </div>
   </div>
 
-  <!-- ── Chat messages ── -->
+  <!-- ── Chat ── -->
   <main id="chat"></main>
 
-  <!-- ── Bottom bar（wave + input）── -->
+  <!-- ── Bottom bar ── -->
   <div id="bottom-bar">
     <div id="wave-zone">
       <span id="wave-label">待机</span>
@@ -74,47 +91,77 @@
     </div>
     <div id="input-zone">
       <textarea id="text-input" placeholder="输入消息… Enter 发送，Shift+Enter 换行" rows="1"></textarea>
-      <button class="action-btn" id="btn-mic" title="按住录音（Space）">🎤</button>
+      <button class="action-btn" id="btn-mic"  title="按住录音（Space）">🎤</button>
       <button class="action-btn" id="btn-send" title="发送（Enter）">↑</button>
-    </div>
-  </div>
-
-  <!-- ── Engine Bar（左下角）── -->
-  <div id="engine-bar">
-    <div class="eng-item" id="eng-llm">
-      <span class="eng-label">LLM</span>
-      <select id="model-select">{{model_options}}</select>
-    </div>
-    <div class="eng-divider"></div>
-    <div class="eng-item eng-btn" id="eng-asr" data-tip="切换识别引擎">
-      <span class="eng-label">ASR</span>
-      <span class="eng-val" id="eng-asr-val">Paraformer</span>
-    </div>
-    <div class="eng-divider"></div>
-    <div class="eng-item eng-btn" id="eng-tts" data-tip="切换合成引擎">
-      <span class="eng-label">TTS</span>
-      <span class="eng-val" id="eng-tts-val">Edge</span>
     </div>
   </div>
 
 </div><!-- #app -->
 
-<!-- ── Popup menus ── -->
-<div class="eng-popup" id="popup-asr">
-  <div class="popup-title">语音识别引擎</div>
-  <button class="popup-item active" data-asr="paraformer">🚀 Paraformer（DashScope）</button>
-  <button class="popup-item" data-asr="whisper">🤖 Whisper（本地）</button>
+<!-- ── LLM Popup ── -->
+<div class="hdr-popup" id="popup-llm">
+  <div class="popup-title">🧠 语言模型</div>
+  {{model_options}}
 </div>
-<div class="eng-popup" id="popup-tts-engine">
-  <div class="popup-title">语音合成引擎</div>
-  <button class="popup-item active" data-tts-engine="edge">🌐 Edge TTS（免费）</button>
-  <button class="popup-item" data-tts-engine="qwen3tts">✨ Qwen3-TTS</button>
-  <button class="popup-item" data-tts-engine="pyttsx3">💻 pyttsx3（本地）</button>
+
+<!-- ── ASR Popup ── -->
+<div class="hdr-popup" id="popup-asr">
+  <div class="popup-title">🎤 语音识别引擎</div>
+  <button class="popup-item active" data-asr="paraformer">
+    <span class="pi-icon">🚀</span>
+    <span class="pi-info"><b>Paraformer</b><small>DashScope · 高精度中文</small></span>
+    <span class="pi-badge cloud">云端</span>
+  </button>
+  <button class="popup-item" data-asr="whisper">
+    <span class="pi-icon">🤖</span>
+    <span class="pi-info"><b>Whisper</b><small>本地离线 · 多语言</small></span>
+    <span class="pi-badge local">本地</span>
+  </button>
+  <button class="popup-item" data-asr="funasr">
+    <span class="pi-icon">⚡</span>
+    <span class="pi-info"><b>FunASR</b><small>阿里开源 · 快速</small></span>
+    <span class="pi-badge local">本地</span>
+  </button>
+  <button class="popup-item" data-asr="azure">
+    <span class="pi-icon">☁️</span>
+    <span class="pi-info"><b>Azure Speech</b><small>微软云 · 多语言</small></span>
+    <span class="pi-badge cloud">云端</span>
+  </button>
+</div>
+
+<!-- ── TTS Popup ── -->
+<div class="hdr-popup" id="popup-tts">
+  <div class="popup-title">🔉 语音合成引擎</div>
+  <button class="popup-item active" data-tts-engine="edge">
+    <span class="pi-icon">🌐</span>
+    <span class="pi-info"><b>Edge TTS</b><small>微软免费 · 多声音</small></span>
+    <span class="pi-badge free">免费</span>
+  </button>
+  <button class="popup-item" data-tts-engine="qwen3tts">
+    <span class="pi-icon">💎</span>
+    <span class="pi-info"><b>Qwen3-TTS</b><small>通义千问 · 高表现力</small></span>
+    <span class="pi-badge cloud">云端</span>
+  </button>
+  <button class="popup-item" data-tts-engine="openai">
+    <span class="pi-icon">✨</span>
+    <span class="pi-info"><b>OpenAI TTS</b><small>高质量 · 多语言</small></span>
+    <span class="pi-badge cloud">云端</span>
+  </button>
+  <button class="popup-item" data-tts-engine="cosyvoice">
+    <span class="pi-icon">🎵</span>
+    <span class="pi-info"><b>CosyVoice</b><small>阿里云 · 自然流畅</small></span>
+    <span class="pi-badge cloud">云端</span>
+  </button>
+  <button class="popup-item" data-tts-engine="pyttsx3">
+    <span class="pi-icon">💻</span>
+    <span class="pi-info"><b>pyttsx3</b><small>系统本地 · 完全离线</small></span>
+    <span class="pi-badge local">本地</span>
+  </button>
 </div>
 
 <!-- ── Realtime Overlay ── -->
 <div id="rt-overlay">
-  <button class="rt-close-btn" id="rt-close">✕ 退出</button>
+  <button class="rt-close-btn" id="rt-close">✕ 退出实时模式</button>
   <div class="rt-orb-wrap">
     <div class="rt-ring"></div><div class="rt-ring"></div><div class="rt-ring"></div>
     <div class="rt-orb listening" id="rt-orb">🎙</div>
@@ -125,42 +172,186 @@
   <div class="rt-transcript" id="rt-transcript"></div>
 </div>
 
+<!-- ── Settings Panel ── -->
 <div id="settings-panel">
   <div class="sp-backdrop"></div>
   <div class="sp-dialog">
     <div class="sp-header">
-      <h2>⚙️ 设置</h2>
+      <div class="sp-header-left">
+        <div class="sp-icon">⚙️</div>
+        <div>
+          <h2>设置</h2>
+          <p>配置 API 密钥与引擎选项</p>
+        </div>
+      </div>
       <button class="sp-close" id="sp-close">✕</button>
     </div>
+
+    <div class="sp-tabs">
+      <button class="sp-tab active" data-tab="keys">🔑 API 密钥</button>
+      <button class="sp-tab" data-tab="asr">🎤 识别</button>
+      <button class="sp-tab" data-tab="tts">🔊 合成</button>
+      <button class="sp-tab" data-tab="llm">🧠 模型</button>
+    </div>
+
     <div class="sp-body">
-      <div class="sp-section">
-        <div class="sp-section-title">API 密钥</div>
-        <div class="sp-field"><label>通义千问 (DashScope)</label><input type="password" id="sp-qwen-key" placeholder="sk-..." autocomplete="off"></div>
-        <div class="sp-field"><label>OpenAI</label><input type="password" id="sp-openai-key" placeholder="sk-..." autocomplete="off"></div>
-        <div class="sp-field"><label>DeepSeek</label><input type="password" id="sp-deepseek-key" placeholder="sk-..." autocomplete="off"></div>
-        <div class="sp-field"><label>Groq</label><input type="password" id="sp-groq-key" placeholder="gsk_..." autocomplete="off"></div>
-        <div class="sp-field"><label>硅基流动 (SiliconFlow)</label><input type="password" id="sp-siliconflow-key" placeholder="sk-..." autocomplete="off"></div>
-      </div>
-      <div class="sp-section">
-        <div class="sp-section-title">语音设置</div>
+
+      <!-- Keys -->
+      <div class="sp-tab-pane active" id="tab-keys">
         <div class="sp-field">
-          <label>Edge TTS 声音</label>
-          <select id="sp-tts-voice">
-            <option value="zh-CN-XiaoxiaoNeural">晓晓 (女声·温柔)</option>
-            <option value="zh-CN-YunxiNeural">云希 (男声·活力)</option>
-            <option value="zh-CN-YunjianNeural">云健 (男声·沉稳)</option>
-            <option value="zh-CN-XiaoyiNeural">晓伊 (女声·活力)</option>
-            <option value="zh-CN-YunyangNeural">云扬 (男声·新闻)</option>
+          <label>🇨🇳 通义千问 · DashScope</label>
+          <div class="sp-input-row">
+            <input type="password" id="sp-qwen-key" placeholder="sk-..." autocomplete="off">
+            <a class="sp-link" href="https://dashscope.aliyuncs.com" target="_blank">获取</a>
+          </div>
+          <small>Qwen 系列模型 + Paraformer ASR + CosyVoice TTS</small>
+        </div>
+        <div class="sp-field">
+          <label>🤖 OpenAI</label>
+          <div class="sp-input-row">
+            <input type="password" id="sp-openai-key" placeholder="sk-..." autocomplete="off">
+            <a class="sp-link" href="https://platform.openai.com" target="_blank">获取</a>
+          </div>
+          <small>GPT-4o / GPT-4.1 + OpenAI TTS</small>
+        </div>
+        <div class="sp-field">
+          <label>🐋 DeepSeek</label>
+          <div class="sp-input-row">
+            <input type="password" id="sp-deepseek-key" placeholder="sk-..." autocomplete="off">
+            <a class="sp-link" href="https://platform.deepseek.com" target="_blank">获取</a>
+          </div>
+          <small>DeepSeek-V3 / DeepSeek-R1</small>
+        </div>
+        <div class="sp-field">
+          <label>⚡ Groq</label>
+          <div class="sp-input-row">
+            <input type="password" id="sp-groq-key" placeholder="gsk_..." autocomplete="off">
+            <a class="sp-link" href="https://console.groq.com" target="_blank">获取</a>
+          </div>
+          <small>Llama3 / Gemma2，超快推理</small>
+        </div>
+        <div class="sp-field">
+          <label>🌊 硅基流动 · SiliconFlow</label>
+          <div class="sp-input-row">
+            <input type="password" id="sp-siliconflow-key" placeholder="sk-..." autocomplete="off">
+            <a class="sp-link" href="https://siliconflow.cn" target="_blank">获取</a>
+          </div>
+          <small>国内高速，Qwen3 / DeepSeek 系列</small>
+        </div>
+      </div>
+
+      <!-- ASR -->
+      <div class="sp-tab-pane" id="tab-asr">
+        <div class="sp-engine-grid">
+          <label class="sp-engine-card" data-asr="paraformer">
+            <div class="sec-top"><span class="sec-icon">🚀</span><input type="radio" name="asr-engine" value="paraformer" checked></div>
+            <div class="sec-name">Paraformer</div>
+            <div class="sec-desc">DashScope · 高精度中文 · 实时流式</div>
+            <span class="sec-badge cloud">云端</span>
+          </label>
+          <label class="sp-engine-card" data-asr="whisper">
+            <div class="sec-top"><span class="sec-icon">🤖</span><input type="radio" name="asr-engine" value="whisper"></div>
+            <div class="sec-name">Whisper</div>
+            <div class="sec-desc">OpenAI 开源 · 本地 · 多语言</div>
+            <span class="sec-badge local">本地</span>
+          </label>
+          <label class="sp-engine-card" data-asr="funasr">
+            <div class="sec-top"><span class="sec-icon">⚡</span><input type="radio" name="asr-engine" value="funasr"></div>
+            <div class="sec-name">FunASR</div>
+            <div class="sec-desc">阿里开源 · 快速 · 流式</div>
+            <span class="sec-badge local">本地</span>
+          </label>
+          <label class="sp-engine-card" data-asr="azure">
+            <div class="sec-top"><span class="sec-icon">☁️</span><input type="radio" name="asr-engine" value="azure"></div>
+            <div class="sec-name">Azure Speech</div>
+            <div class="sec-desc">微软云 · 多语言 · 高准确率</div>
+            <span class="sec-badge cloud">云端</span>
+          </label>
+        </div>
+        <div class="sp-field" style="margin-top:14px">
+          <label>Whisper 模型大小</label>
+          <select id="sp-whisper-size">
+            <option value="tiny">tiny（最快，精度低）</option>
+            <option value="base">base</option>
+            <option value="small" selected>small（推荐）</option>
+            <option value="medium">medium</option>
+            <option value="large">large（最准）</option>
           </select>
         </div>
       </div>
-    </div>
+
+      <!-- TTS -->
+      <div class="sp-tab-pane" id="tab-tts">
+        <div class="sp-engine-grid">
+          <label class="sp-engine-card" data-tts="edge">
+            <div class="sec-top"><span class="sec-icon">🌐</span><input type="radio" name="tts-engine" value="edge" checked></div>
+            <div class="sec-name">Edge TTS</div>
+            <div class="sec-desc">微软免费 · 多声音 · 无需 Key</div>
+            <span class="sec-badge free">免费</span>
+          </label>
+          <label class="sp-engine-card" data-tts="qwen3tts">
+            <div class="sec-top"><span class="sec-icon">💎</span><input type="radio" name="tts-engine" value="qwen3tts"></div>
+            <div class="sec-name">Qwen3-TTS</div>
+            <div class="sec-desc">通义千问 · 高表现力</div>
+            <span class="sec-badge cloud">云端</span>
+          </label>
+          <label class="sp-engine-card" data-tts="openai">
+            <div class="sec-top"><span class="sec-icon">✨</span><input type="radio" name="tts-engine" value="openai"></div>
+            <div class="sec-name">OpenAI TTS</div>
+            <div class="sec-desc">高质量 · 情感自然</div>
+            <span class="sec-badge cloud">云端</span>
+          </label>
+          <label class="sp-engine-card" data-tts="cosyvoice">
+            <div class="sec-top"><span class="sec-icon">🎵</span><input type="radio" name="tts-engine" value="cosyvoice"></div>
+            <div class="sec-name">CosyVoice</div>
+            <div class="sec-desc">阿里云 · 自然流畅 · 中文优化</div>
+            <span class="sec-badge cloud">云端</span>
+          </label>
+          <label class="sp-engine-card" data-tts="pyttsx3">
+            <div class="sec-top"><span class="sec-icon">💻</span><input type="radio" name="tts-engine" value="pyttsx3"></div>
+            <div class="sec-name">pyttsx3</div>
+            <div class="sec-desc">系统本地 · 完全离线</div>
+            <span class="sec-badge local">本地</span>
+          </label>
+        </div>
+        <div class="sp-field" style="margin-top:14px">
+          <label>Edge TTS 声音</label>
+          <select id="sp-tts-voice">
+            <option value="zh-CN-XiaoxiaoNeural">晓晓 · 女声 · 温柔</option>
+            <option value="zh-CN-YunxiNeural">云希 · 男声 · 活力</option>
+            <option value="zh-CN-YunjianNeural">云健 · 男声 · 沉稳</option>
+            <option value="zh-CN-XiaoyiNeural">晓伊 · 女声 · 活力</option>
+            <option value="zh-CN-YunyangNeural">云扬 · 男声 · 新闻</option>
+            <option value="en-US-AriaNeural">Aria · 英文 · 女声</option>
+            <option value="en-US-GuyNeural">Guy · 英文 · 男声</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- LLM -->
+      <div class="sp-tab-pane" id="tab-llm">
+        <div class="sp-field">
+          <label>系统提示词</label>
+          <textarea id="sp-system-prompt" rows="5" placeholder="你是一个聪明的语音助手…"></textarea>
+        </div>
+        <div class="sp-field">
+          <label>Ollama 地址</label>
+          <input type="text" id="sp-ollama-url" placeholder="http://localhost:11434" autocomplete="off">
+        </div>
+        <div class="sp-field">
+          <label>Ollama 默认模型</label>
+          <input type="text" id="sp-ollama-model" placeholder="qwen2.5:7b" autocomplete="off">
+        </div>
+      </div>
+
+    </div><!-- .sp-body -->
+
     <div class="sp-footer">
-      <button class="sp-btn-save" id="sp-save">💾 保存</button>
+      <button class="sp-btn-save" id="sp-save">💾 保存设置</button>
       <span class="sp-hint" id="sp-hint"></span>
     </div>
   </div>
-</div>
+</div><!-- #settings-panel -->
 
 <script src="/static/app.js"></script>
 </body>

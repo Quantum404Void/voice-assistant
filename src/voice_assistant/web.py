@@ -120,7 +120,8 @@ def _get_llm(key: str = DEFAULT_MODEL) -> LLMClient:
 def _get_tts() -> TTS:
     global _tts_engine, _tts_queue, _tts_thread
     if _tts_engine is None:
-        _tts_engine = TTS(cfg.tts_engine, api_key=cfg.tts_api_key)
+        _tts_engine = TTS(cfg.tts_engine, api_key=cfg.tts_api_key,
+                          voice=getattr(cfg, "tts_voice", "zh-CN-XiaoxiaoNeural"))
         _tts_queue = queue.Queue()
         _tts_thread = threading.Thread(
             target=_tts_worker, args=(_tts_queue, _tts_engine), daemon=True)
@@ -163,6 +164,23 @@ def strip_markdown(text: str) -> str:
     return text.strip()
 
 # ── HTML rendering ────────────────────────────────────────────────────────
+def _model_icon(key: str) -> str:
+    if key == "local":          return "🖥️"
+    if key.startswith("qwen"):  return "🇨🇳"
+    if key.startswith("gpt"):   return "🤖"
+    if key.startswith("deepseek"): return "🐋"
+    if key.startswith("llama") or key.startswith("gemma"): return "⚡"
+    if "Qwen" in key or "deepseek-ai" in key: return "🌊"
+    return "🧠"
+
+def _model_badge(key: str) -> str:
+    if key == "local": return '<span class="pi-badge local">本地</span>'
+    if key.startswith("gpt"): return '<span class="pi-badge cloud">OpenAI</span>'
+    if key.startswith("deepseek"): return '<span class="pi-badge cloud">DeepSeek</span>'
+    if key.startswith("llama") or key.startswith("gemma"): return '<span class="pi-badge free">Groq</span>'
+    if "Qwen" in key or "deepseek-ai" in key: return '<span class="pi-badge local">硅基</span>'
+    return '<span class="pi-badge cloud">云端</span>'
+
 def _render_html() -> str:
     tmpl = (TEMPLATE_DIR / "index.html").read_text(encoding="utf-8")
     # ASR label
@@ -171,9 +189,13 @@ def _render_html() -> str:
     # TTS label
     tts_label = "Edge-TTS" if cfg.tts_engine in ("auto","edge") \
                 else ("Qwen3-TTS" if cfg.tts_engine == "qwen3tts" else "本地TTS")
-    # model options
+    # model options — rendered as popup-item buttons
     opts = "".join(
-        f'<option value="{k}">{v["label"]}</option>'
+        f'<button class="popup-item" data-model="{k}">'
+        f'<span class="pi-icon">{_model_icon(k)}</span>'
+        f'<span class="pi-info"><b>{v["label"]}</b></span>'
+        f'{_model_badge(k)}'
+        f'</button>'
         for k, v in MODEL_REGISTRY.items()
     )
     tmpl = tmpl.replace("{{asr_label}}", asr_label)
@@ -268,9 +290,29 @@ async def ws_endpoint(websocket: WebSocket):
             elif mtype == "settings_save":
                 import yaml as _yaml
                 keys = msg.get("keys", {})
-                for field in ("openai_api_key","deepseek_api_key","groq_api_key","siliconflow_api_key","qwen_api_key","tts_voice"):
+                # API keys
+                for field in ("openai_api_key","deepseek_api_key","groq_api_key",
+                              "siliconflow_api_key","qwen_api_key"):
                     if field in keys and keys[field]:
                         setattr(cfg, field, keys[field])
+                # System prompt & ollama
+                for field in ("system_prompt", "ollama_url", "ollama_model"):
+                    if field in keys and keys[field]:
+                        setattr(cfg, field, keys[field])
+                # ASR engine
+                if "asr_engine" in keys and keys["asr_engine"]:
+                    cfg.asr_engine = keys["asr_engine"]
+                    _asr = None  # 下次请求时重新初始化
+                # TTS engine
+                if "tts_engine" in keys and keys["tts_engine"]:
+                    cfg.tts_engine = keys["tts_engine"]
+                    _abort_tts()
+                    _tts_engine = None; _tts_queue = None; _tts_thread = None
+                # TTS voice（热更新，不重建引擎）
+                if "tts_voice" in keys and keys["tts_voice"]:
+                    cfg.tts_voice = keys["tts_voice"]
+                    if _tts_engine:
+                        _tts_engine.voice = keys["tts_voice"]
                 MODEL_REGISTRY = _build_model_registry(cfg)
                 _llm_pool.clear()
                 HTML = _render_html()

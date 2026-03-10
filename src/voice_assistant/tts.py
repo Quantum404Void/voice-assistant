@@ -37,9 +37,10 @@ def _split_sentences(text: str) -> list[str]:
 
 
 class TTS:
-    def __init__(self, engine: str = "auto", api_key: str = ""):
+    def __init__(self, engine: str = "auto", api_key: str = "", voice: str = "zh-CN-XiaoxiaoNeural"):
         self.engine_name = engine
         self.api_key     = api_key
+        self.voice       = voice  # edge-tts 声音，可热更新
         self._engine: str | None = None
         self._lock       = threading.Lock()
         self._pyttsx3    = None
@@ -113,7 +114,8 @@ class TTS:
         self._js_path = path
         return path
 
-    def _speak_edge(self, text: str, voice: str = "zh-CN-XiaoxiaoNeural", rate: str = "+5%"):
+    def _speak_edge(self, text: str, voice: str | None = None, rate: str = "+5%"):
+        voice = voice or self.voice or "zh-CN-XiaoxiaoNeural"
         if self._aborted.is_set():
             return
         js = self._get_js()

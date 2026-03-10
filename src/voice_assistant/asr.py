@@ -90,12 +90,13 @@ class ASR:
             try: os.unlink(tmp_wav)
             except: pass
 
-        if result.get("status_code") == 200:
+        if result and result.get("status_code") == 200:
             sentences = result.get("output", {}).get("sentence", [])
             return "".join(s.get("text", "") for s in sentences).strip()
 
         # quota/network error → fallback to whisper
-        print(f"[ASR] paraformer failed ({result.get('message')}), fallback whisper")
+        reason = result.get("message") if result else "None response"
+        print(f"[ASR] paraformer failed ({reason}), fallback whisper")
         self._load_whisper()
         return self._transcribe_whisper(audio)
 
