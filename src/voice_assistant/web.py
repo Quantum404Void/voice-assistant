@@ -132,8 +132,16 @@ def _enqueue_tts(text: str):
     _get_tts()
     if _tts_queue: _tts_queue.put(text)
 
-def _abort_tts():
-    """清空 TTS 队列 + 停止当前播放（打断）"""
+def _reset_asr():
+    global _asr
+    _asr = None
+
+def _reset_tts():
+    global _tts_engine, _tts_queue, _tts_thread
+    _abort_tts()
+    _tts_engine = None; _tts_queue = None; _tts_thread = None
+
+
     if _tts_queue:
         while not _tts_queue.empty():
             try: _tts_queue.get_nowait(); _tts_queue.task_done()
@@ -262,17 +270,15 @@ async def ws_endpoint(websocket: WebSocket):
 
             elif mtype == "asr_switch":
                 engine = msg.get("engine", "auto")
-                global _asr
-                _asr = None  # 下次请求时重新初始化
                 cfg.asr_engine = engine
+                _reset_asr()
+                asr = _get_asr()
                 await send({"type": "status", "text": f"ASR 已切换: {engine}", "color": "green"})
 
             elif mtype == "tts_engine_switch":
                 engine = msg.get("engine", "edge")
-                global _tts_engine, _tts_queue, _tts_thread
-                _abort_tts()
-                _tts_engine = None; _tts_queue = None; _tts_thread = None
                 cfg.tts_engine = engine
+                _reset_tts()
                 await send({"type": "status", "text": f"TTS 已切换: {engine}", "color": "green"})
 
             elif mtype == "model_switch":
@@ -302,12 +308,12 @@ async def ws_endpoint(websocket: WebSocket):
                 # ASR engine
                 if "asr_engine" in keys and keys["asr_engine"]:
                     cfg.asr_engine = keys["asr_engine"]
-                    _asr = None  # 下次请求时重新初始化
+                    _reset_asr()
+                    asr = _get_asr()  # 重新初始化供本连接使用
                 # TTS engine
                 if "tts_engine" in keys and keys["tts_engine"]:
                     cfg.tts_engine = keys["tts_engine"]
-                    _abort_tts()
-                    _tts_engine = None; _tts_queue = None; _tts_thread = None
+                    _reset_tts()
                 # TTS voice（热更新，不重建引擎）
                 if "tts_voice" in keys and keys["tts_voice"]:
                     cfg.tts_voice = keys["tts_voice"]

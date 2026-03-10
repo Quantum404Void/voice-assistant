@@ -855,3 +855,40 @@ body::after {
 .sb-top { display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; }
 .sb-bot { display:flex; flex-direction:column; align-items:center; gap:6px;
           padding-top:8px; border-top:1px solid rgba(255,255,255,.05); }
+
+/* ══ Help Panel ══════════════════════════════════════════════════════ */
+#help-panel{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;}
+#help-panel.show{display:flex;}
+.help-backdrop{position:absolute;inset:0;background:rgba(4,6,14,.85);backdrop-filter:blur(14px);}
+.help-dialog{
+  position:relative;z-index:1;
+  background:rgba(9,12,26,.98);backdrop-filter:blur(40px);
+  border:1px solid rgba(108,143,255,.22);border-radius:14px;
+  width:min(380px,90vw);
+  box-shadow:0 24px 64px rgba(0,0,0,.7);
+  animation:popup-in .18s ease;overflow:hidden;
+}
+.help-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px 12px;border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:.85rem;font-weight:700;color:var(--text);
+}
+.help-body{padding:14px 20px 20px;display:flex;flex-direction:column;gap:8px;}
+.help-row{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:.8rem;}
+.help-row span{color:var(--text2);}
+.help-row hr{border:none;border-top:1px solid rgba(255,255,255,.06);margin:2px 0;}
+.help-body hr{border:none;border-top:1px solid rgba(255,255,255,.06);margin:4px 0;}
+kbd{
+  display:inline-block;padding:3px 8px;border-radius:5px;font-family:'JetBrains Mono',monospace;
+  font-size:.72rem;background:rgba(108,143,255,.1);
+  border:1px solid rgba(108,143,255,.3);color:var(--accent);white-space:nowrap;
+}
+
+/* ── user msg re-send hint ── */
+.msg.user .bubble { cursor:default; }
+.msg.user .bubble:hover::after {
+  content:'双击重发';
+  position:absolute;bottom:-20px;right:0;
+  font-size:.6rem;color:var(--text4);white-space:nowrap;
+  pointer-events:none;
+}

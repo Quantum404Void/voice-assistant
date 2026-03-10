@@ -110,6 +110,7 @@ function onWsMessage(e) {
 
     case 'done':
       finishAssistant();
+      saveHistory();
       setStatus('就绪', 'green');
       isBusy = false;
       if (realtimeMode && !ttsEnabled) setTimeout(rtStartListening, 300);
@@ -140,7 +141,9 @@ function onWsMessage(e) {
       setStatus(msg.text, msg.color || 'green'); break;
 
     case 'cleared':
-      showWelcome(); break;
+      showWelcome();
+      localStorage.removeItem(HISTORY_KEY);
+      break;
 
     case 'models_updated':
       onModelsUpdated(msg.options); break;
@@ -692,8 +695,73 @@ function onModelsUpdated(options) {
   bindModelItems();
 
 /* ══════════════════════════════════════════
-   Export conversation
+   Chat History persistence (localStorage)
 ══════════════════════════════════════════ */
+const HISTORY_KEY = 'xiaoxin_chat_history';
+const MAX_HISTORY = 100; // max messages to store
+
+function saveHistory() {
+  const msgs = $('chat').querySelectorAll('.msg');
+  if (!msgs.length) { localStorage.removeItem(HISTORY_KEY); return; }
+  const records = [];
+  msgs.forEach(row => {
+    const isUser = row.classList.contains('user');
+    const bubble = row.querySelector('.bubble');
+    if (!bubble) return;
+    const clone = bubble.cloneNode(true);
+    clone.querySelectorAll('.copy-btn,.code-copy').forEach(el => el.remove());
+    records.push({
+      role: isUser ? 'user' : 'assistant',
+      text: clone.innerText.trim(),
+      ts:   row.querySelector('.ts')?.textContent || '',
+      html: isUser ? null : bubble.innerHTML,
+    });
+  });
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(records.slice(-MAX_HISTORY)));
+  } catch (e) { /* quota exceeded — skip */ }
+}
+
+function loadHistory() {
+  let records;
+  try { records = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch { return; }
+  if (!records.length) return;
+
+  hideWelcome();
+  records.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'msg ' + r.role;
+    const av = document.createElement('div');
+    av.className = 'avatar';
+    av.textContent = r.role === 'user' ? '👤' : '🔧';
+    const body = document.createElement('div');
+    body.className = 'msg-body';
+    if (r.role === 'user') body.style.alignItems = 'flex-end';
+    const bub = document.createElement('div');
+    bub.className = 'bubble';
+    if (r.role === 'assistant' && r.html) {
+      bub.innerHTML = r.html;
+    } else {
+      bub.textContent = r.text;
+    }
+    const cb = document.createElement('button');
+    cb.className = 'copy-btn'; cb.textContent = '复制';
+    cb.onclick = () => copyText(cb, r.text);
+    bub.appendChild(cb);
+    const ts = document.createElement('span');
+    ts.className = 'ts'; ts.textContent = r.ts + ' (历史)';
+    body.appendChild(bub); body.appendChild(ts);
+    row.appendChild(av); row.appendChild(body);
+    $('chat').appendChild(row);
+  });
+  const sep = document.createElement('div');
+  sep.className = 'info'; sep.textContent = '── 以上为历史记录，当前会话开始 ──';
+  $('chat').appendChild(sep);
+  scrollBottom();
+}
+
+
 function exportChat() {
   const msgs = $('chat').querySelectorAll('.msg');
   if (!msgs.length) { addInfo('没有对话可导出'); return; }
@@ -732,6 +800,66 @@ $('chip-space')?.addEventListener('click', () => pttStart());
 $('chip-rt')?.addEventListener('click',  enterRealtime);
 
 /* ══════════════════════════════════════════
-   Boot
+   Keyboard shortcuts help (? key)
 ══════════════════════════════════════════ */
+function toggleHelp() {
+  let panel = $('help-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'help-panel';
+    panel.innerHTML = `
+      <div class="help-backdrop"></div>
+      <div class="help-dialog">
+        <div class="help-header">
+          <span>⌨️ 键盘快捷键</span>
+          <button class="sp-close" onclick="toggleHelp()">✕</button>
+        </div>
+        <div class="help-body">
+          <div class="help-row"><kbd>Enter</kbd><span>发送消息</span></div>
+          <div class="help-row"><kbd>Shift+Enter</kbd><span>换行</span></div>
+          <div class="help-row"><kbd>Space</kbd><span>PTT 录音（输入框外）</span></div>
+          <div class="help-row"><kbd>?</kbd><span>显示/隐藏此帮助</span></div>
+          <div class="help-row"><kbd>Esc</kbd><span>关闭弹窗 / 退出实时模式</span></div>
+          <hr>
+          <div class="help-row"><span style="color:var(--text3)">双击用户消息</span><span>重新发送</span></div>
+          <div class="help-row"><span style="color:var(--text3)">📥 按钮</span><span>导出对话 Markdown</span></div>
+        </div>
+      </div>`;
+    panel.querySelector('.help-backdrop').onclick = toggleHelp;
+    document.body.appendChild(panel);
+  }
+  panel.classList.toggle('show');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === '?' &&
+      document.activeElement?.tagName !== 'TEXTAREA' &&
+      document.activeElement?.tagName !== 'INPUT') {
+    e.preventDefault(); toggleHelp();
+  }
+  if (e.key === 'Escape') {
+    if ($('help-panel')?.classList.contains('show')) { toggleHelp(); return; }
+    if ($('settings-panel')?.classList.contains('show')) { closeSettings(); return; }
+    if (realtimeMode) rtClose();
+  }
+});
+
+/* ══════════════════════════════════════════
+   Re-send on double-click user message
+══════════════════════════════════════════ */
+$('chat').addEventListener('dblclick', e => {
+  const row = e.target.closest('.msg.user');
+  if (!row || isBusy) return;
+  const bubble = row.querySelector('.bubble');
+  if (!bubble) return;
+  const clone = bubble.cloneNode(true);
+  clone.querySelectorAll('.copy-btn').forEach(el => el.remove());
+  const text = clone.innerText.trim();
+  if (!text) return;
+  isBusy = true;
+  wsSend({ type: 'text', text });
+});
+
+
+loadHistory();
 connect();
