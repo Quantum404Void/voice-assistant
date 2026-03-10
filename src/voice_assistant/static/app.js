@@ -450,7 +450,7 @@ function rtSetState(state, caption = '') {
     ? wbar.classList.add('rt-on')
     : wbar.classList.remove('rt-on');
 
-  $('btn-rt').className = 'sb-btn ' + (
+  $('btn-rt').className = 'nav-icon-btn ' + (
     state === 'speaking'   ? 'active-red'   :
     state === 'processing' ? 'active'        : 'active-green'
   );
@@ -483,7 +483,7 @@ function rtClose() {
   if (rtAudioCtx) { rtAudioCtx.close(); rtAudioCtx = null; }
   rtAnalyser = null; stopWaveform();
   rtOverlay.classList.remove('show');
-  $('btn-rt').className = 'sb-btn';
+  $('btn-rt').className = 'nav-icon-btn';
   $('bottom-bar').classList.remove('rt-on');
   setWaveLabel('待机');
   setStatus('就绪', 'green');
@@ -579,7 +579,7 @@ $('btn-tts').onclick = () => {
   const btn = $('btn-tts');
   btn.textContent = ttsEnabled ? '🔊' : '🔇';
   btn.dataset.tip = ttsEnabled ? 'TTS 开启中，点击关闭' : 'TTS 已关闭，点击开启';
-  btn.className   = 'sb-btn' + (ttsEnabled ? ' active' : ' muted');
+  btn.className   = 'nav-icon-btn' + (ttsEnabled ? ' active' : ' muted');
   wsSend({ type: 'tts_toggle', enabled: ttsEnabled });
 };
 
