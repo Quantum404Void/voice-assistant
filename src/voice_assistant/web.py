@@ -136,18 +136,24 @@ def _reset_asr():
     global _asr
     _asr = None
 
-def _reset_tts():
-    global _tts_engine, _tts_queue, _tts_thread
-    _abort_tts()
-    _tts_engine = None; _tts_queue = None; _tts_thread = None
-
-
+def _abort_tts():
+    """打断当前 TTS 播放（不销毁引擎）"""
+    if _tts_engine:
+        _tts_engine.abort()
     if _tts_queue:
         while not _tts_queue.empty():
             try: _tts_queue.get_nowait(); _tts_queue.task_done()
             except: break
+
+def _reset_tts():
+    global _tts_engine, _tts_queue, _tts_thread
     if _tts_engine:
         _tts_engine.abort()
+    if _tts_queue:
+        while not _tts_queue.empty():
+            try: _tts_queue.get_nowait(); _tts_queue.task_done()
+            except: break
+    _tts_engine = None; _tts_queue = None; _tts_thread = None
 
 def strip_markdown(text: str) -> str:
     """清理 markdown 和 emoji，返回适合 TTS 朗读的纯文本"""

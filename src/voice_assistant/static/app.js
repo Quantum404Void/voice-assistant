@@ -23,6 +23,9 @@ let pttMediaRec = null, pttChunks = [], pttTimerIv = null;
 let wfAnalyser = null, wfAnimId = null;
 let _rtWaveId = null;
 
+const HISTORY_KEY = 'xiaoxin_chat_history';
+const MAX_HISTORY = 100;
+
 /* ══════════════════════════════════════════
    Helpers
 ══════════════════════════════════════════ */
@@ -590,7 +593,9 @@ function bindModelItems() {
   });
   // mark first as active by default
   const first = document.querySelector('[data-model]');
-  if (first) first.classList.add('active');
+  if (first && !document.querySelector('[data-model].active')) {
+    first.classList.add('active');
+  }
 }
 
 // ASR popup items
@@ -681,7 +686,6 @@ $('sp-save').onclick = () => {
 function onModelsUpdated(options) {
   const popup = document.getElementById('popup-llm');
   if (!popup) return;
-  // keep title, replace items
   const title = popup.querySelector('.popup-title');
   popup.innerHTML = '';
   if (title) popup.appendChild(title);
@@ -693,13 +697,13 @@ function onModelsUpdated(options) {
     popup.appendChild(btn);
   });
   bindModelItems();
+  $('sp-hint').textContent = '✓ 已保存';
+  setTimeout(() => { $('sp-hint').textContent = ''; }, 3000);
+}
 
 /* ══════════════════════════════════════════
    Chat History persistence (localStorage)
 ══════════════════════════════════════════ */
-const HISTORY_KEY = 'xiaoxin_chat_history';
-const MAX_HISTORY = 100; // max messages to store
-
 function saveHistory() {
   const msgs = $('chat').querySelectorAll('.msg');
   if (!msgs.length) { localStorage.removeItem(HISTORY_KEY); return; }
@@ -761,7 +765,9 @@ function loadHistory() {
   scrollBottom();
 }
 
-
+/* ══════════════════════════════════════════
+   Export chat
+══════════════════════════════════════════ */
 function exportChat() {
   const msgs = $('chat').querySelectorAll('.msg');
   if (!msgs.length) { addInfo('没有对话可导出'); return; }
@@ -770,7 +776,6 @@ function exportChat() {
     const isUser = row.classList.contains('user');
     const bubble = row.querySelector('.bubble');
     if (!bubble) return;
-    // get plain text (remove copy button text)
     const clone = bubble.cloneNode(true);
     clone.querySelectorAll('.copy-btn,.code-copy').forEach(el => el.remove());
     const text = clone.innerText.trim();
@@ -788,9 +793,6 @@ function exportChat() {
   a.click();
   URL.revokeObjectURL(url);
 }
-  $('sp-hint').textContent = '✓ 已保存';
-  setTimeout(() => { $('sp-hint').textContent = ''; }, 3000);
-}
 
 /* ══════════════════════════════════════════
    Welcome screen shortcuts
@@ -800,48 +802,35 @@ $('chip-space')?.addEventListener('click', () => pttStart());
 $('chip-rt')?.addEventListener('click',  enterRealtime);
 
 /* ══════════════════════════════════════════
-   Keyboard shortcuts help (? key)
+   Keyboard shortcuts (single listener)
 ══════════════════════════════════════════ */
-function toggleHelp() {
-  let panel = $('help-panel');
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'help-panel';
-    panel.innerHTML = `
-      <div class="help-backdrop"></div>
-      <div class="help-dialog">
-        <div class="help-header">
-          <span>⌨️ 键盘快捷键</span>
-          <button class="sp-close" onclick="toggleHelp()">✕</button>
-        </div>
-        <div class="help-body">
-          <div class="help-row"><kbd>Enter</kbd><span>发送消息</span></div>
-          <div class="help-row"><kbd>Shift+Enter</kbd><span>换行</span></div>
-          <div class="help-row"><kbd>Space</kbd><span>PTT 录音（输入框外）</span></div>
-          <div class="help-row"><kbd>?</kbd><span>显示/隐藏此帮助</span></div>
-          <div class="help-row"><kbd>Esc</kbd><span>关闭弹窗 / 退出实时模式</span></div>
-          <hr>
-          <div class="help-row"><span style="color:var(--text3)">双击用户消息</span><span>重新发送</span></div>
-          <div class="help-row"><span style="color:var(--text3)">📥 按钮</span><span>导出对话 Markdown</span></div>
-        </div>
-      </div>`;
-    panel.querySelector('.help-backdrop').onclick = toggleHelp;
-    document.body.appendChild(panel);
-  }
-  panel.classList.toggle('show');
-}
+function openHelp()  { $('help-panel')?.classList.add('show'); }
+function closeHelp() { $('help-panel')?.classList.remove('show'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('help-close')?.addEventListener('click', closeHelp);
+  document.querySelector('.help-backdrop')?.addEventListener('click', closeHelp);
+});
 
 document.addEventListener('keydown', e => {
-  if (e.key === '?' &&
-      document.activeElement?.tagName !== 'TEXTAREA' &&
-      document.activeElement?.tagName !== 'INPUT') {
-    e.preventDefault(); toggleHelp();
-  }
+  const tag = document.activeElement?.tagName;
+  const inInput = tag === 'TEXTAREA' || tag === 'INPUT';
+
+  if (e.code === 'Space' && !inInput && !e.repeat) { e.preventDefault(); pttStart(); return; }
+  if (e.code === 'Space' && !inInput) return; // already handled above
+
+  if (e.key === '?' && !inInput) { e.preventDefault(); openHelp(); return; }
+
   if (e.key === 'Escape') {
-    if ($('help-panel')?.classList.contains('show')) { toggleHelp(); return; }
+    if ($('help-panel')?.classList.contains('show'))     { closeHelp(); return; }
     if ($('settings-panel')?.classList.contains('show')) { closeSettings(); return; }
-    if (realtimeMode) rtClose();
+    if (realtimeMode) { rtClose(); return; }
+    closeAllPopups(); return;
   }
+
+  if (e.key === 'l' && e.ctrlKey && !inInput) { e.preventDefault(); wsSend({ type: 'clear' }); return; }
+  if (e.key === 'e' && e.ctrlKey && !inInput) { e.preventDefault(); exportChat(); return; }
+  if (e.key === ',' && e.ctrlKey)             { e.preventDefault(); openSettings(); return; }
 });
 
 /* ══════════════════════════════════════════
@@ -861,33 +850,8 @@ $('chat').addEventListener('dblclick', e => {
 });
 
 /* ══════════════════════════════════════════
-   Keyboard shortcuts & Help panel
+   Init
 ══════════════════════════════════════════ */
-function openHelp()  { $('help-panel').classList.add('show'); }
-function closeHelp() { $('help-panel').classList.remove('show'); }
-
-document.addEventListener('DOMContentLoaded', () => {
-  $('help-close')?.addEventListener('click', closeHelp);
-  document.querySelector('.help-backdrop')?.addEventListener('click', closeHelp);
-});
-
-document.addEventListener('keydown', e => {
-  const tag = document.activeElement?.tagName;
-  const inInput = tag === 'TEXTAREA' || tag === 'INPUT';
-
-  if (e.key === '?' && !inInput) { e.preventDefault(); openHelp(); return; }
-
-  if (e.key === 'Escape') {
-    if ($('help-panel')?.classList.contains('show'))     { closeHelp(); return; }
-    if ($('settings-panel')?.classList.contains('show')) { closeSettings(); return; }
-    if (realtimeMode) { rtClose(); return; }
-    closeAllPopups(); return;
-  }
-
-  if (e.key === 'l' && e.ctrlKey && !inInput) { e.preventDefault(); wsSend({ type: 'clear' }); return; }
-  if (e.key === 'e' && e.ctrlKey && !inInput) { e.preventDefault(); exportChat(); return; }
-  if (e.key === ',' && e.ctrlKey)             { e.preventDefault(); openSettings(); return; }
-});
-
+bindModelItems();
 loadHistory();
 connect();
