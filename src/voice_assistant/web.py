@@ -229,6 +229,27 @@ async def health():
     ok = _get_llm("local").check_connection()
     return {"ollama": ok, "model": cfg.ollama_model, "qwen_available": bool(cfg.qwen_api_key)}
 
+@app.get("/config")
+async def get_config():
+    """返回当前配置供设置面板预填（API key 只返回是否存在）"""
+    def mask(v: str) -> str:
+        if not v: return ""
+        return v[:4] + "…" + v[-4:] if len(v) > 10 else "****"
+    return {
+        "qwen_api_key":        mask(cfg.qwen_api_key),
+        "openai_api_key":      mask(cfg.openai_api_key),
+        "deepseek_api_key":    mask(cfg.deepseek_api_key),
+        "groq_api_key":        mask(cfg.groq_api_key),
+        "siliconflow_api_key": mask(cfg.siliconflow_api_key),
+        "asr_engine":          cfg.asr_engine,
+        "tts_engine":          cfg.tts_engine,
+        "tts_voice":           cfg.tts_voice,
+        "system_prompt":       cfg.system_prompt,
+        "ollama_url":          cfg.ollama_url,
+        "ollama_model":        cfg.ollama_model,
+        "whisper_model":       cfg.whisper_model,
+    }
+
 @app.get("/models")
 async def list_models():
     return {k: v["label"] for k, v in MODEL_REGISTRY.items()}

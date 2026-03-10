@@ -25,6 +25,7 @@ let _rtWaveId = null;
 
 const HISTORY_KEY = 'xiaoxin_chat_history';
 const MAX_HISTORY = 100;
+let _userScrolled = false; // 用户是否主动上翻
 
 /* ══════════════════════════════════════════
    Helpers
@@ -38,6 +39,21 @@ function nowStr() {
 function setStatus(text, color = 'green') {
   $('status-text').textContent = text;
   $('status-dot').className = 'status-dot ' + color;
+}
+
+/* 智能滚动：监听用户上翻 */
+function initScrollBehavior() {
+  const chat = $('chat');
+  const btn  = $('scroll-bottom-btn');
+  chat.addEventListener('scroll', () => {
+    const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 60;
+    _userScrolled = !atBottom;
+    if (btn) btn.classList.toggle('show', _userScrolled);
+  });
+  if (btn) btn.addEventListener('click', () => {
+    _userScrolled = false;
+    scrollBottom(true);
+  });
 }
 
 function setWaveLabel(t) {
@@ -65,9 +81,30 @@ function copyText(btn, text, label = '复制') {
   });
 }
 
-function scrollBottom() {
+function scrollBottom(force = false) {
   const chat = $('chat');
-  requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
+  if (force || !_userScrolled) {
+    requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
+  }
+}
+
+/* Toast 通知 */
+function showToast(text, type = 'info', durationMs = 2800) {
+  let container = $('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = text;
+  container.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 300);
+  }, durationMs);
 }
 
 function hideWelcome() {
@@ -141,7 +178,9 @@ function onWsMessage(e) {
       break;
 
     case 'status':
-      setStatus(msg.text, msg.color || 'green'); break;
+      setStatus(msg.text, msg.color || 'green');
+      if (msg.color === 'green' && msg.text !== '就绪') showToast(msg.text, 'success');
+      break;
 
     case 'cleared':
       showWelcome();
@@ -629,7 +668,32 @@ document.querySelectorAll('[data-tts-engine]').forEach(btn => {
 /* ══════════════════════════════════════════
    Settings panel
 ══════════════════════════════════════════ */
-function openSettings()  { $('settings-panel').classList.add('show');    }
+function openSettings() {
+  $('settings-panel').classList.add('show');
+  // 预填当前配置
+  fetch('/config').then(r => r.json()).then(c => {
+    const map = {
+      'sp-qwen-key':        c.qwen_api_key,
+      'sp-openai-key':      c.openai_api_key,
+      'sp-deepseek-key':    c.deepseek_api_key,
+      'sp-groq-key':        c.groq_api_key,
+      'sp-siliconflow-key': c.siliconflow_api_key,
+      'sp-system-prompt':   c.system_prompt,
+      'sp-ollama-url':      c.ollama_url,
+      'sp-ollama-model':    c.ollama_model,
+    };
+    for (const [id, val] of Object.entries(map)) {
+      const el = $(id); if (el && val) el.value = val;
+    }
+    if (c.tts_voice) { const el = $('sp-tts-voice'); if (el) el.value = c.tts_voice; }
+    if (c.whisper_model) { const el = $('sp-whisper-size'); if (el) el.value = c.whisper_model; }
+    // ASR/TTS engine radio
+    const asrR = document.querySelector(`input[name="asr-engine"][value="${c.asr_engine}"]`);
+    if (asrR) asrR.checked = true;
+    const ttsR = document.querySelector(`input[name="tts-engine"][value="${c.tts_engine}"]`);
+    if (ttsR) ttsR.checked = true;
+  }).catch(() => {});
+}
 function closeSettings() { $('settings-panel').classList.remove('show'); }
 
 $('btn-settings').onclick = openSettings;
@@ -697,6 +761,7 @@ function onModelsUpdated(options) {
     popup.appendChild(btn);
   });
   bindModelItems();
+  showToast('✓ 设置已保存', 'success');
   $('sp-hint').textContent = '✓ 已保存';
   setTimeout(() => { $('sp-hint').textContent = ''; }, 3000);
 }
@@ -853,5 +918,6 @@ $('chat').addEventListener('dblclick', e => {
    Init
 ══════════════════════════════════════════ */
 bindModelItems();
+initScrollBehavior();
 loadHistory();
 connect();
