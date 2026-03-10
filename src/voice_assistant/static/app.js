@@ -223,7 +223,7 @@ function addUserMsg(text) {
   row.innerHTML = `
     <div class="avatar">👤</div>
     <div class="msg-body">
-      <div class="bubble">${escapeHtml(text)}<button class="copy-btn">复制</button></div>
+      <div class="bubble user">${escapeHtml(text)}<button class="copy-btn">复制</button></div>
       <span class="ts">${nowStr()}</span>
     </div>`;
   row.querySelector('.copy-btn').onclick = function () { copyText(this, text); };
@@ -261,7 +261,7 @@ function startAssistant() {
   body.className = 'msg-body';
 
   const bub = document.createElement('div');
-  bub.className = 'bubble';
+  bub.className = 'bubble ai';
 
   asCursor = document.createElement('span');
   asCursor.className = 'cursor';
