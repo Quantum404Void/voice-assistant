@@ -6,6 +6,7 @@ marked.setOptions({ breaks: true, gfm: true });
 ══════════════════════════════════════════ */
 let ws = null;
 let ttsEnabled   = true;
+let aiSpeaking   = false;   // AI 正在 TTS 播放中
 let isBusy       = false;
 let realtimeMode = false;
 
@@ -156,7 +157,21 @@ function onWsMessage(e) {
       if (realtimeMode && !ttsEnabled) setTimeout(rtStartListening, 300);
       break;
 
+    case 'tts':
+      if (msg.state === 'start') {
+        aiSpeaking = true;
+        const mb = $('btn-mic');
+        if (mb) { mb.dataset.tip = '点击打断 AI 说话'; mb.classList.add('ai-speaking'); }
+      } else if (msg.state === 'stop') {
+        aiSpeaking = false;
+        stopTtsAudio();
+        const mb = $('btn-mic');
+        if (mb) { mb.dataset.tip = '按住说话'; mb.classList.remove('ai-speaking'); }
+      }
+      break;
+
     case 'tts_done':
+      aiSpeaking = false;
       if (realtimeMode) setTimeout(rtStartListening, 300);
       break;
 
@@ -306,7 +321,14 @@ function finishAssistant() {
 function sendText() {
   const inp  = $('text-input');
   const text = inp.value.trim();
-  if (!text || isBusy) return;
+  if (!text) return;
+  // AI 正在说话 → 先打断
+  if (aiSpeaking || isBusy) {
+    wsSend({ type: 'abort' });
+    stopTtsAudio();
+    aiSpeaking = false;
+    isBusy = false;
+  }
   isBusy = true;
   inp.value = ''; inp.style.height = '40px';
   wsSend({ type: 'text', text });
@@ -363,7 +385,14 @@ function stopWaveform() {
 const micBtn = $('btn-mic');
 
 async function pttStart() {
-  if (pttMediaRec || isBusy || realtimeMode) return;
+  if (pttMediaRec || realtimeMode) return;
+  // AI 正在说话 → 先打断，不阻止录音
+  if (aiSpeaking || isBusy) {
+    wsSend({ type: 'abort' });
+    stopTtsAudio();
+    aiSpeaking = false;
+    isBusy = false;
+  }
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });

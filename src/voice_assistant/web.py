@@ -196,6 +196,7 @@ _tts_engine: Optional[TTS]   = None
 _tts_queue:  Optional[queue.Queue] = None
 _tts_thread: Optional[threading.Thread] = None
 _tts_enabled: dict[int, bool] = {}   # conn_id → bool
+_abort_flags: dict[int, bool] = {}   # conn_id → abort requested
 
 # ── FastAPI app ───────────────────────────────────────────────────────────
 app = FastAPI(title="小新语音助手")
@@ -265,10 +266,13 @@ def _reset_asr():
     global _asr
     _asr = None
 
-def _abort_tts():
+def _abort_tts(cid: int = -1):
     """打断当前 TTS 播放（不销毁引擎）"""
     if _tts_engine:
+        _tts_engine.reset_abort()   # 先 reset 让 synthesize 不被旧 abort 卡住
         _tts_engine.abort()
+    if cid >= 0:
+        _abort_flags[cid] = True
 
 def _reset_tts():
     global _tts_engine, _tts_queue, _tts_thread
@@ -403,6 +407,7 @@ async def ws_endpoint(websocket: WebSocket):
     await websocket.accept()
     cid = id(websocket)
     _tts_enabled[cid] = True
+    _abort_flags[cid] = False
     asr = _get_asr()
     model_key = DEFAULT_MODEL
     global MODEL_REGISTRY, HTML
@@ -419,19 +424,30 @@ async def ws_endpoint(websocket: WebSocket):
             if mtype == "text":
                 text = msg.get("text", "").strip()
                 if not text: continue
-                _abort_tts()
+                _abort_tts(cid)
+                _abort_flags[cid] = False
                 await send({"type": "user", "text": text})
-                await _stream_llm(websocket, _get_llm(model_key), text, _tts_enabled.get(cid, True))
+                await _stream_llm(websocket, _get_llm(model_key), text, _tts_enabled.get(cid, True), cid)
+
+            elif mtype == "abort":
+                # 用户主动打断：停 LLM+TTS，通知前端
+                _abort_tts(cid)
+                _abort_flags[cid] = True
+                await send({"type": "tts", "state": "stop"})
+                await send({"type": "status", "text": "就绪", "color": "green"})
+                isBusy_reset = {"type": "done"}   # 让前端解锁 isBusy
+                await send(isBusy_reset)
 
             elif mtype in ("audio", "audio_rt"):
                 try:
-                    _abort_tts()
+                    _abort_tts(cid)
+                    _abort_flags[cid] = False
                     text = await _process_audio(asr, msg["data"], msg.get("mime", "audio/webm"))
                     if not text:
                         await send({"type": "error", "text": "未识别到语音，请重试"}); continue
                     await send({"type": "asr", "text": text})
                     await send({"type": "user", "text": text})
-                    await _stream_llm(websocket, _get_llm(model_key), text, _tts_enabled.get(cid, True))
+                    await _stream_llm(websocket, _get_llm(model_key), text, _tts_enabled.get(cid, True), cid)
                 except Exception as e:
                     await send({"type": "error", "text": f"音频处理失败: {e}"})
 
@@ -525,6 +541,7 @@ async def ws_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         _tts_enabled.pop(cid, None)
+        _abort_flags.pop(cid, None)
 
 # ── Audio processing ──────────────────────────────────────────────────────
 async def _process_audio(asr: ASR, b64_data: str, mime: str = "audio/webm") -> str:
@@ -570,15 +587,21 @@ async def _process_audio(asr: ASR, b64_data: str, mime: str = "audio/webm") -> s
             except: pass
 
 # ── LLM streaming ─────────────────────────────────────────────────────────
-async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: bool):
+async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: bool, cid: int = -1):
     async def send(obj):
         await websocket.send_text(json.dumps(obj, ensure_ascii=False))
+
+    def is_aborted():
+        return _abort_flags.get(cid, False)
 
     # 新一轮对话，重置打断标志
     if _tts_engine:
         _tts_engine.reset_abort()
 
     await send({"type": "status", "text": "思考中...", "color": "yellow"})
+    if tts_on:
+        await send({"type": "tts", "state": "start"})
+
     loop = asyncio.get_event_loop()
     q: asyncio.Queue = asyncio.Queue()
 
@@ -591,38 +614,48 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
     threading.Thread(target=run, daemon=True).start()
 
     buf = ""
+    sentence_idx = 0
     while True:
         tok = await q.get()
         if tok is None: break
+        if is_aborted(): break          # LLM token 生产中被打断
         await send({"type": "token", "text": tok})
         if tts_on:
             buf += tok
             if re.search(r'[。！？\.!?\n]', buf):
                 if s := strip_markdown(buf):
-                    await _send_tts_chunk(websocket, s)
+                    if is_aborted(): break
+                    if sentence_idx == 0:
+                        await send({"type": "tts", "state": "sentence_start"})
+                    await _send_tts_chunk(websocket, s, cid)
+                    sentence_idx += 1
                 buf = ""
+
     if tts_on and (s := strip_markdown(buf)):
-        await _send_tts_chunk(websocket, s)
+        if not is_aborted():
+            await _send_tts_chunk(websocket, s, cid)
+
     await send({"type": "done"})
+    if tts_on:
+        await send({"type": "tts", "state": "stop"})
     await send({"type": "tts_done"})
 
 
-async def _send_tts_chunk(websocket: WebSocket, text: str):
-    """Synthesize text and stream audio chunks to browser via WebSocket.
-    Uses edge_tts streaming when available for lower latency."""
+async def _send_tts_chunk(websocket: WebSocket, text: str, cid: int = -1):
+    """Synthesize text and stream audio chunks to browser via WebSocket."""
     if not _tts_engine or not text.strip():
+        return
+    if _abort_flags.get(cid, False):
         return
     engine = getattr(_tts_engine, '_engine', None)
 
     try:
         if engine == "edge":
-            # 流式：逐 chunk 发送，首帧延迟 ~200ms
-            await _send_tts_edge_stream(websocket, text)
+            await _send_tts_edge_stream(websocket, text, cid)
         else:
-            # 非流式：整句合成后发
             loop = asyncio.get_event_loop()
             audio_bytes = await loop.run_in_executor(None, _tts_engine.synthesize, text)
-            if audio_bytes:
+            if audio_bytes and not _abort_flags.get(cid, False):
                 b64 = base64.b64encode(audio_bytes).decode()
                 await websocket.send_text(json.dumps(
                     {"type": "tts_audio", "data": b64}, ensure_ascii=False))
@@ -630,7 +663,7 @@ async def _send_tts_chunk(websocket: WebSocket, text: str):
         print(f"[TTS] send chunk error: {e}")
 
 
-async def _send_tts_edge_stream(websocket: WebSocket, text: str):
+async def _send_tts_edge_stream(websocket: WebSocket, text: str, cid: int = -1):
     """edge_tts 流式：合成到一定大小就发一帧，降低首帧延迟"""
     import edge_tts
     voice = getattr(_tts_engine, 'voice', None) or "zh-CN-XiaoxiaoNeural"
@@ -638,6 +671,8 @@ async def _send_tts_edge_stream(websocket: WebSocket, text: str):
     buf = bytearray()
     CHUNK_SIZE = 8 * 1024  # 8KB 发一次，约 0.5s 音频
     async for chunk in communicate.stream():
+        if _abort_flags.get(cid, False):
+            return
         if chunk["type"] == "audio":
             buf.extend(chunk["data"])
             if len(buf) >= CHUNK_SIZE:
@@ -645,7 +680,7 @@ async def _send_tts_edge_stream(websocket: WebSocket, text: str):
                 await websocket.send_text(json.dumps(
                     {"type": "tts_audio", "data": b64}, ensure_ascii=False))
                 buf.clear()
-    if buf:
+    if buf and not _abort_flags.get(cid, False):
         b64 = base64.b64encode(bytes(buf)).decode()
         await websocket.send_text(json.dumps(
             {"type": "tts_audio", "data": b64}, ensure_ascii=False))

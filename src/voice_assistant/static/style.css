@@ -1724,3 +1724,14 @@ body::after {
   border-radius: 10px !important;
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.28) !important; }
+
+/* ── Abort / AI-speaking mic indicator ── */
+#btn-mic.ai-speaking {
+  background: var(--red) !important;
+  box-shadow: 0 2px 12px rgba(255,55,95,.6) !important;
+  animation: abort-pulse 1.2s ease-in-out infinite !important;
+}
+@keyframes abort-pulse {
+  0%,100% { box-shadow: 0 2px 12px rgba(255,55,95,.5); }
+  50%      { box-shadow: 0 2px 24px rgba(255,55,95,.9), 0 0 0 6px rgba(255,55,95,.15); }
+}
