@@ -608,14 +608,44 @@ async def _stream_llm(websocket: WebSocket, llm: LLMClient, text: str, tts_on: b
 
 
 async def _send_tts_chunk(websocket: WebSocket, text: str):
-    """Synthesize text and send audio bytes to browser via WebSocket."""
+    """Synthesize text and stream audio chunks to browser via WebSocket.
+    Uses edge_tts streaming when available for lower latency."""
     if not _tts_engine or not text.strip():
         return
-    loop = asyncio.get_event_loop()
+    engine = getattr(_tts_engine, '_engine', None)
+
     try:
-        audio_bytes = await loop.run_in_executor(None, _tts_engine.synthesize, text)
-        if audio_bytes:
-            b64 = base64.b64encode(audio_bytes).decode()
-            await websocket.send_text(json.dumps({"type": "tts_audio", "data": b64}, ensure_ascii=False))
+        if engine == "edge":
+            # 流式：逐 chunk 发送，首帧延迟 ~200ms
+            await _send_tts_edge_stream(websocket, text)
+        else:
+            # 非流式：整句合成后发
+            loop = asyncio.get_event_loop()
+            audio_bytes = await loop.run_in_executor(None, _tts_engine.synthesize, text)
+            if audio_bytes:
+                b64 = base64.b64encode(audio_bytes).decode()
+                await websocket.send_text(json.dumps(
+                    {"type": "tts_audio", "data": b64}, ensure_ascii=False))
     except Exception as e:
         print(f"[TTS] send chunk error: {e}")
+
+
+async def _send_tts_edge_stream(websocket: WebSocket, text: str):
+    """edge_tts 流式：合成到一定大小就发一帧，降低首帧延迟"""
+    import edge_tts
+    voice = getattr(_tts_engine, 'voice', None) or "zh-CN-XiaoxiaoNeural"
+    communicate = edge_tts.Communicate(text, voice=voice, rate="+5%")
+    buf = bytearray()
+    CHUNK_SIZE = 8 * 1024  # 8KB 发一次，约 0.5s 音频
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            buf.extend(chunk["data"])
+            if len(buf) >= CHUNK_SIZE:
+                b64 = base64.b64encode(bytes(buf)).decode()
+                await websocket.send_text(json.dumps(
+                    {"type": "tts_audio", "data": b64}, ensure_ascii=False))
+                buf.clear()
+    if buf:
+        b64 = base64.b64encode(bytes(buf)).decode()
+        await websocket.send_text(json.dumps(
+            {"type": "tts_audio", "data": b64}, ensure_ascii=False))
