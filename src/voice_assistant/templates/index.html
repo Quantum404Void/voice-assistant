@@ -87,37 +87,31 @@
 
   <!-- ══ Bottom bar ══════════════════════════════════════════════════════ -->
   <div id="bottom-bar">
-    <div class="bottom-inner">
 
-      <!-- 左侧状态/波形区 -->
-      <div class="bot-left">
-        <div class="wave-info">
-          <span id="wave-label">待机</span>
-          <span id="rec-timer"></span>
-        </div>
-        <canvas id="waveform"></canvas>
+    <!-- 左侧状态/波形区 -->
+    <div class="bot-left">
+      <div class="wave-info">
+        <span id="wave-label">待机</span>
+        <span id="rec-timer"></span>
       </div>
-
-      <!-- 中间输入区 -->
-      <div class="bot-center">
-        <div class="input-wrap" id="input-wrap">
-          <textarea id="text-input"
-            placeholder="输入消息… Enter 发送，Shift+Enter 换行"
-            rows="1"></textarea>
-        </div>
-      </div>
-
-      <!-- 右侧按钮区 -->
-      <div class="bot-right">
-        <button class="bot-btn mic-btn" id="btn-mic" title="按住录音（Space）">
-          <span class="bot-btn-icon">🎤</span>
-        </button>
-        <button class="bot-btn send-btn" id="btn-send" title="发送（Enter）">
-          <span class="bot-btn-icon">↑</span>
-        </button>
-      </div>
-
+      <canvas id="waveform"></canvas>
     </div>
+
+    <!-- 中间输入区 -->
+    <div class="bot-center">
+      <div id="input-wrap">
+        <textarea id="text-input"
+          placeholder="输入消息… Enter 发送，Shift+Enter 换行"
+          rows="1"></textarea>
+      </div>
+    </div>
+
+    <!-- 右侧按钮区 -->
+    <div class="bot-right">
+      <button class="bot-btn mic-btn" id="btn-mic" title="按住录音（Space）">🎤</button>
+      <button class="bot-btn send-btn" id="btn-send" title="发送（Enter）">↑</button>
+    </div>
+
   </div>
 
 </div><!-- #app -->
