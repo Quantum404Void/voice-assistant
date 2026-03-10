@@ -167,12 +167,15 @@ function onWsMessage(e) {
         stopTtsAudio();
         const mb = $('btn-mic');
         if (mb) { mb.dataset.tip = '按住说话'; mb.classList.remove('ai-speaking'); }
+        // 实时模式：TTS 结束立刻重开监听（不等 tts_done）
+        if (realtimeMode) setTimeout(rtStartListening, 200);
       }
       break;
 
     case 'tts_done':
       aiSpeaking = false;
-      if (realtimeMode) setTimeout(rtStartListening, 300);
+      // 实时模式已在 tts stop 里处理，这里兜底（TTS 关闭时走这条路）
+      if (realtimeMode && !ttsEnabled) setTimeout(rtStartListening, 200);
       break;
 
     case 'user':
@@ -526,6 +529,7 @@ function rtClose() {
 
 function rtStartListening() {
   if (!realtimeMode || !rtStream) return;
+  if (aiSpeaking) return;   // AI 还在说话，等 tts stop 再开麦
   rtSpeechDetected = false; rtChunks = [];
   isBusy = false;
   rtSetState('listening');
@@ -546,6 +550,15 @@ function rtEnergyScan() {
   buf.forEach(v => { const d = (v - 128) / 128; sum += d * d; });
   const rms = Math.sqrt(sum / buf.length);
   if (rms > RT_ENERGY_THR) {
+    // 用户开口 → 如果 AI 正在说话先打断
+    if (aiSpeaking || isBusy) {
+      wsSend({ type: 'abort' });
+      stopTtsAudio();
+      aiSpeaking = false;
+      isBusy = false;
+      const mb = $('btn-mic');
+      if (mb) { mb.dataset.tip = '按住说话'; mb.classList.remove('ai-speaking'); }
+    }
     if (!rtSpeechDetected) {
       rtSpeechDetected = true;
       rtSetState('speaking'); setWaveLabel('说话中');
