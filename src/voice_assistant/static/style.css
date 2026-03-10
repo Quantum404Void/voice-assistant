@@ -1074,3 +1074,62 @@ kbd{
   box-shadow: 0 8px 24px rgba(108,143,255,.3);
 }
 .welcome-chips { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:460px; }
+
+/* ══ Bottom-left 待机/录音 切换 (2026-03-10) ══════════════════════════ */
+.wave-idle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.idle-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text3);
+  flex-shrink: 0;
+  transition: background .3s, box-shadow .3s;
+  animation: idle-breathe 3s ease-in-out infinite;
+}
+@keyframes idle-breathe {
+  0%,100% { opacity: .45; transform: scale(1);   }
+  50%      { opacity: .9;  transform: scale(1.25); }
+}
+#bottom-bar.recording .idle-dot,
+#bottom-bar.rt-on .idle-dot {
+  display: none;
+}
+
+/* active 波形区 默认隐藏，录音/实时时显示 */
+.wave-active {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+#bottom-bar.recording .wave-active,
+#bottom-bar.rt-on .wave-active {
+  display: flex;
+}
+#bottom-bar.recording .wave-idle,
+#bottom-bar.rt-on .wave-idle {
+  display: none;
+}
+.wave-active canvas {
+  flex: 1; height: 22px;
+}
+#rec-timer {
+  font-size: .6rem; color: var(--red); font-weight: 700;
+  min-width: 26px; text-align: right; font-variant-numeric: tabular-nums;
+}
+
+/* 录音时 idle-dot 变红脉冲 */
+#bottom-bar.recording #wave-label { color: var(--red); }
+#bottom-bar.recording .idle-dot {
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(240,98,122,.7);
+  animation: rec-dot-pulse .6s ease-in-out infinite;
+}
+@keyframes rec-dot-pulse {
+  0%,100% { opacity:.8; transform:scale(1);   box-shadow:0 0 6px rgba(240,98,122,.5); }
+  50%     { opacity:1;  transform:scale(1.35); box-shadow:0 0 14px rgba(240,98,122,.9); }
+}
+/* 实时模式绿色脉冲 */
+#bottom-bar.rt-on #wave-label { color: var(--green); }

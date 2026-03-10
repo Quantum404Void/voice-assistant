@@ -95,11 +95,16 @@
 
     <!-- 左侧状态/波形区 -->
     <div class="bot-left">
-      <div class="wave-info">
+      <!-- 待机状态：脉冲点 + 文字 -->
+      <div class="wave-idle" id="wave-idle">
+        <span class="idle-dot"></span>
         <span id="wave-label">待机</span>
+      </div>
+      <!-- 录音/实时状态：波形 + 计时器 -->
+      <div class="wave-active" id="wave-active">
+        <canvas id="waveform"></canvas>
         <span id="rec-timer"></span>
       </div>
-      <canvas id="waveform"></canvas>
     </div>
 
     <!-- 中间输入区 -->
