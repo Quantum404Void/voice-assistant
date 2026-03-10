@@ -445,6 +445,8 @@ async def ws_endpoint(websocket: WebSocket):
                     text = await _process_audio(asr, msg["data"], msg.get("mime", "audio/webm"))
                     if not text:
                         await send({"type": "error", "text": "未识别到语音，请重试"}); continue
+                    if text == "__silent__":
+                        await send({"type": "error", "text": "音量太低，请靠近麦克风重试"}); continue
                     await send({"type": "asr", "text": text})
                     await send({"type": "user", "text": text})
                     await _stream_llm(websocket, _get_llm(model_key), text, _tts_enabled.get(cid, True), cid)
@@ -581,7 +583,7 @@ async def _process_audio(asr: ASR, b64_data: str, mime: str = "audio/webm") -> s
 
         if rms < 0.005:
             print(f"[ASR] rms too low ({rms:.4f}), skipping")
-            return ""
+            return "__silent__"
 
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, asr.transcribe, audio_np)
