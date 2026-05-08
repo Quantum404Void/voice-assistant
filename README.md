@@ -32,7 +32,7 @@
 ### 安装
 
 ```bash
-git clone https://github.com/Quantum505Void/voice-assistant.git
+git clone https://github.com/Quantum404Void/voice-assistant.git
 cd voice-assistant
 uv sync
 ```
